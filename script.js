@@ -9,11 +9,28 @@ let currentEditingCourse = null;
 document.addEventListener('DOMContentLoaded', () => {
     const fileInput = document.getElementById('fileInput');
     const resetBtn = document.getElementById('resetBtn');
-    const exportBtn = document.getElementById('exportBtn');
+    const lockscreenBtn = document.getElementById('lockscreenBtn');
     
     fileInput.addEventListener('change', handleFileUpload);
     resetBtn.addEventListener('click', resetToOriginal);
-    exportBtn.addEventListener('click', exportAsHTML);
+    if (lockscreenBtn) lockscreenBtn.addEventListener('click', generateLockscreen);
+    
+    // Modal close handlers
+    const modal = document.getElementById('editModal');
+    const closeBtn = document.querySelector('.modal-close');
+    const cancelBtn = document.getElementById('cancelBtn');
+    const saveBtn = document.getElementById('saveBtn');
+    
+    if (closeBtn) closeBtn.onclick = closeModal;
+    if (cancelBtn) cancelBtn.onclick = closeModal;
+    if (saveBtn) saveBtn.onclick = saveCourseEdits;
+    
+    // Click outside to close
+    window.onclick = function(event) {
+        if (event.target === modal) {
+            closeModal();
+        }
+    };
     
     showDemoGrid();
 });
@@ -73,7 +90,6 @@ async function handleFileUpload(e) {
         currentCourses = JSON.parse(JSON.stringify(courses));
         
         renderTimetableGrid();
-        showStudentInfo();
         showStatus(`✅ Loaded ${courses.length} courses! Click any class to edit.`, 'success');
         
     } catch (error) {
@@ -92,19 +108,27 @@ async function parseCOR(file) {
     const textContent = await page.getTextContent();
     const textItems = textContent.items.map(item => item.str);
     
-    // Extract student info
-    for (let i = 0; i < textItems.length; i++) {
-        if (textItems[i] === 'Name:') {
-            currentStudent.name = textItems[i+1] || '';
-        }
-        if (textItems[i] === 'Program:') {
-            currentStudent.program = textItems[i+1] || '';
-        }
-        if (textItems[i] === 'Student No:') {
-            currentStudent.studentNo = textItems[i+1] || '';
-        }
-    }
+    // Join all text for easier searching
+    const fullText = textItems.join(' ');
     
+    // ========== EXTRACT STUDENT INFO ==========
+    currentStudent = {};
+    
+    const nameRegex = /Name:\s*([A-Z][A-Za-z\s,]+?)(?=\s+(?:Student No|Program|Gender|College|$))/i;
+    const studentNoRegex = /Student No:\s*(\d+)/i;
+    const programRegex = /Program:\s*([A-Z][A-Za-z\s.]+?)(?=\s+(?:Gender|Major|Curriculum|Year Level|$))/i;
+    
+    const nameMatch = fullText.match(nameRegex);
+    const studentNoMatch = fullText.match(studentNoRegex);
+    const programMatch = fullText.match(programRegex);
+    
+    if (nameMatch) currentStudent.name = nameMatch[1].trim();
+    if (studentNoMatch) currentStudent.studentNo = studentNoMatch[1];
+    if (programMatch) currentStudent.program = programMatch[1].trim();
+    
+    console.log('✅ Extracted student info:', currentStudent);
+    
+    // ========== EXTRACT COURSES ==========
     const courses = [];
     
     let i = 0;
@@ -121,6 +145,7 @@ async function parseCOR(file) {
             item === 'UNITS' || item === 'SECTION' || item === 'SCHEDULE' ||
             item === 'ROOM' || item === 'FACULTY' || item === 'Total' ||
             item === 'Lec' || item === 'Lab' || item === 'Credit' ||
+            item === 'Gender:' || item === 'Major:' || item === 'Student No:' ||
             item.match(/^Fee$|^FEE$|^Amount$|^DISCOUNT$|^TOTAL$|^PAYMENT$|^Prelim$|^Midterm$|^Prefinal$|^Final$/) ||
             item.match(/^\d+\.\d{2}$/)
         );
@@ -135,7 +160,7 @@ async function parseCOR(file) {
             /^[A-Z]{2,8}$/i.test(item)
         );
         
-        if (isCourseCode && item.length < 15) {
+        if (isCourseCode && item.length < 15 && !item.match(/^(Name|Program|Student|Gender|Major|College)/i)) {
             let schedule = '';
             let scheduleIndex = i;
             let subject = '';
@@ -220,14 +245,13 @@ async function parseCOR(file) {
         }
     }
     
-    console.log('Found courses:', courses);
+    console.log('📚 Found courses:', courses.length);
     return courses;
 }
 
 function renderTimetableGrid() {
     const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
     
-    // 1-HOUR TIME SLOTS from 12:00 AM to 11:00 PM
     const times = [];
     for (let hour = 0; hour <= 23; hour++) {
         const period = hour >= 12 ? 'PM' : 'AM';
@@ -235,7 +259,6 @@ function renderTimetableGrid() {
         times.push(`${displayHour}:00 ${period}`);
     }
     
-    // Create grid
     const grid = {};
     for (const day of days) {
         grid[day] = {};
@@ -244,34 +267,22 @@ function renderTimetableGrid() {
         }
     }
     
-    // Place courses into the grid
     for (const course of currentCourses) {
         if (!course.startTime || !course.day) continue;
         
         const courseDays = getDaysArray(course.day);
-        
-        // Get start and end times as floats (e.g., 9.5 for 9:30 AM)
         const startFloat = timeToFloat(course.startTime);
         const endFloat = timeToFloat(course.endTime);
-        
-        // Calculate which hour slot the course starts in (floor)
         const startHour = Math.floor(startFloat);
         const startSlotIndex = startHour;
-        
-        // Calculate total duration in hours
         const durationHours = endFloat - startFloat;
-        
-        // Calculate how many hour slots this spans (ceiling)
         const endHour = Math.ceil(endFloat);
         const rowspan = Math.max(1, endHour - startHour);
         
         if (startSlotIndex < 0 || startSlotIndex >= times.length) continue;
         
-        // Calculate visual offset within the starting cell (0-70px)
         const startMinutesPastHour = (startFloat - startHour) * 60;
         const topOffset = (startMinutesPastHour / 60) * 70;
-        
-        // Calculate height for the course block
         const heightPx = Math.max(30, durationHours * 70);
         
         for (const day of courseDays) {
@@ -279,8 +290,6 @@ function renderTimetableGrid() {
                 grid[day][startSlotIndex] = {
                     course: course,
                     duration: rowspan,
-                    startFloat: startFloat,
-                    endFloat: endFloat,
                     topOffset: topOffset,
                     heightPx: heightPx,
                     startIdx: startSlotIndex,
@@ -290,7 +299,6 @@ function renderTimetableGrid() {
         }
     }
     
-    // Build the HTML table
     let html = '<div class="timetable-wrapper">';
     html += '<table class="timetable">';
     html += '<thead><tr><th class="time-col">Time</th>';
@@ -311,7 +319,6 @@ function renderTimetableGrid() {
         for (const day of days) {
             const cell = grid[day][slotIdx];
             
-            // Check if this cell is part of a spanned course (hidden)
             let isSpanned = false;
             for (let prevSlot = 0; prevSlot < slotIdx; prevSlot++) {
                 const prevCell = grid[day][prevSlot];
@@ -327,7 +334,6 @@ function renderTimetableGrid() {
                 html += `<td class="spanned-cell" style="display: none;"></td>`;
             } else if (cell && cell.course) {
                 const rowspan = cell.duration;
-                // Create a container for absolute positioning
                 html += `<td class="course-cell-wrapper" rowspan="${rowspan}" style="position: relative; vertical-align: top;">`;
                 html += `
                     <div class="course-cell" onclick="editCourse('${escapeHtml(cell.course.code)}')" 
@@ -335,7 +341,7 @@ function renderTimetableGrid() {
                         <div class="course-code">${escapeHtml(cell.course.code)}</div>
                         <div class="course-subject">${escapeHtml((cell.course.subject || '').substring(0, 35))}</div>
                         <div class="course-time">${escapeHtml(cell.course.startTime)} - ${escapeHtml(cell.course.endTime)}</div>
-                        <div class="course-room">🏠 ${escapeHtml(cell.course.room || 'TBA')}</div>
+                        <div class="course-room">${escapeHtml(cell.course.room || 'TBA')}</div>
                     </div>
                 `;
                 html += `</td>`;
@@ -348,13 +354,12 @@ function renderTimetableGrid() {
     }
     
     html += `</tbody>`;
-    html += `</table>`; 
+    html += `</table>`;
     html += `</div>`;
     
     document.getElementById('timetableGrid').innerHTML = html;
 }
 
-// Helper: Convert time string to float (e.g., "9:30 AM" -> 9.5)
 function timeToFloat(timeStr) {
     const match = timeStr.match(/(\d+):(\d+)\s*(AM|PM)/i);
     if (!match) return 0;
@@ -391,7 +396,6 @@ function editCourse(courseCode) {
     
     currentEditingCourse = course;
     
-    // Fill modal with current values
     document.getElementById('editCode').value = course.code;
     document.getElementById('editSubject').value = course.subject || '';
     document.getElementById('editDay').value = course.day;
@@ -399,11 +403,9 @@ function editCourse(courseCode) {
     document.getElementById('editEndTime').value = course.endTime;
     document.getElementById('editRoom').value = course.room || '';
     
-    // Show modal
     document.getElementById('editModal').style.display = 'block';
 }
 
-// Close modal functions
 function closeModal() {
     document.getElementById('editModal').style.display = 'none';
     currentEditingCourse = null;
@@ -412,49 +414,17 @@ function closeModal() {
 function saveCourseEdits() {
     if (!currentEditingCourse) return;
     
-    // Get values from modal
-    const newCode = document.getElementById('editCode').value.trim();
-    const newSubject = document.getElementById('editSubject').value.trim();
-    const newDay = document.getElementById('editDay').value;
-    const newStartTime = document.getElementById('editStartTime').value;
-    const newEndTime = document.getElementById('editEndTime').value;
-    const newRoom = document.getElementById('editRoom').value.trim();
+    currentEditingCourse.code = document.getElementById('editCode').value.trim();
+    currentEditingCourse.subject = document.getElementById('editSubject').value.trim();
+    currentEditingCourse.day = document.getElementById('editDay').value;
+    currentEditingCourse.startTime = document.getElementById('editStartTime').value;
+    currentEditingCourse.endTime = document.getElementById('editEndTime').value;
+    currentEditingCourse.room = document.getElementById('editRoom').value.trim();
     
-    // Update course
-    currentEditingCourse.code = newCode;
-    currentEditingCourse.subject = newSubject;
-    currentEditingCourse.day = newDay;
-    currentEditingCourse.startTime = newStartTime;
-    currentEditingCourse.endTime = newEndTime;
-    currentEditingCourse.room = newRoom;
-    
-    // Re-render timetable
     renderTimetableGrid();
     showStatus('✅ Schedule updated successfully!', 'success');
-    
-    // Close modal
     closeModal();
 }
-
-// Add event listeners for modal
-document.addEventListener('DOMContentLoaded', () => {
-    // Modal close handlers
-    const modal = document.getElementById('editModal');
-    const closeBtn = document.querySelector('.modal-close');
-    const cancelBtn = document.getElementById('cancelBtn');
-    const saveBtn = document.getElementById('saveBtn');
-    
-    if (closeBtn) closeBtn.onclick = closeModal;
-    if (cancelBtn) cancelBtn.onclick = closeModal;
-    if (saveBtn) saveBtn.onclick = saveCourseEdits;
-    
-    // Click outside to close
-    window.onclick = function(event) {
-        if (event.target === modal) {
-            closeModal();
-        }
-    };
-});
 
 function resetToOriginal() {
     if (originalCourses.length) {
@@ -464,44 +434,137 @@ function resetToOriginal() {
     }
 }
 
-function showStudentInfo() {
-    const infoDiv = document.getElementById('studentInfo');
-    if (currentStudent.name) {
-        infoDiv.innerHTML = `<strong>${escapeHtml(currentStudent.name)}</strong> | ${escapeHtml(currentStudent.program || '')}`;
+// ========== LOCKSREEN WALLPAPER GENERATOR ==========
+async function generateLockscreen() {
+    if (currentCourses.length === 0) {
+        showStatus('Please upload a COR first.', 'error');
+        return;
     }
+    
+    showLoading(true);
+    
+    // Group courses by day
+    const daysOrder = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const scheduleByDay = {};
+    daysOrder.forEach(day => { scheduleByDay[day] = []; });
+    
+    for (const course of currentCourses) {
+        if (!course.startTime || !course.day) continue;
+        const days = getDaysArray(course.day);
+        for (const day of days) {
+            scheduleByDay[day].push({
+                code: course.code,
+                name: course.subject || course.code,
+                startTime: course.startTime,
+                endTime: course.endTime,
+                room: course.room
+            });
+        }
+    }
+    
+    // Sort classes by time
+    for (const day in scheduleByDay) {
+        scheduleByDay[day].sort((a, b) => timeToFloat(a.startTime) - timeToFloat(b.startTime));
+    }
+    
+    // ONLY include days that have classes
+    const daysWithClasses = daysOrder.filter(day => scheduleByDay[day].length > 0);
+    
+    if (daysWithClasses.length === 0) {
+        showStatus('No classes found in schedule.', 'error');
+        showLoading(false);
+        return;
+    }
+    
+    // Build lockscreen HTML
+    let html = `<div class="lockscreen-wallpaper" id="lockscreenWallpaper">`;
+    html += `<div class="lockscreen-title">`;
+    html += `<h1>Class Schedule</h1>`;
+    html += `</div>`;
+    html += `<div class="lockscreen-schedule">`;
+    
+    for (const day of daysWithClasses) {
+        const classes = scheduleByDay[day];
+        const dayClass = 'day-card';
+        const shortDay = day.substring(0, 3).toUpperCase();
+        
+        html += `<div class="${dayClass}">`;
+        html += `<div class="day-header">`;
+        html += `<span class="day-name">${shortDay}</span>`;
+        html += `</div>`;
+        html += `<div class="class-list">`;
+        
+        for (const cls of classes) {
+            const timeRange = `${cls.startTime} – ${cls.endTime}`;
+            html += `
+                <div class="class-item">
+                    <div class="class-time">${escapeHtml(timeRange)}</div>
+                    <div class="class-name">${escapeHtml(cls.name.substring(0, 40))}</div>
+                    <div class="class-room">${escapeHtml(cls.room || '')}</div>
+                </div>
+            `;
+        }
+        html += `</div></div>`;
+    }
+    
+    html += `</div>`;
+    html += `</div>`; // No footer
+    
+    // Store original and show lockscreen
+    const gridContainer = document.getElementById('timetableGrid');
+    const originalContent = gridContainer.innerHTML;
+    gridContainer.innerHTML = html;
+    
+    setTimeout(async () => {
+        const element = document.getElementById('lockscreenWallpaper');
+        
+        if (typeof html2canvas === 'undefined') {
+            await loadScript('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js');
+        }
+        
+        try {
+            // Get natural dimensions without stretching
+            const rect = element.getBoundingClientRect();
+            
+            // Create canvas at natural scale
+            const canvas = await html2canvas(element, {
+                scale: 2.5,
+                backgroundColor: '#faf7f0',
+                logging: false,
+                windowWidth: rect.width,
+                windowHeight: rect.height,
+                onclone: (clonedDoc, element) => {
+                    // Ensure cloned element has correct styling
+                }
+            });
+            
+            // Don't force 1080x1920 - keep natural proportions
+            const link = document.createElement('a');
+            link.download = 'lockscreen_schedule.png';
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+            
+            showStatus('✅ Lockscreen wallpaper saved!', 'success');
+        } catch (error) {
+            console.error('Error:', error);
+            showStatus('Error generating image', 'error');
+        } finally {
+            gridContainer.innerHTML = originalContent;
+            showLoading(false);
+        }
+    }, 200);
 }
 
-function exportAsHTML() {
-    const htmlContent = `<!DOCTYPE html>
-    <html>
-    <head>
-        <title>My Class Schedule</title>
-        <style>
-            body { font-family: Arial, sans-serif; padding: 20px; }
-            h1 { color: #1a472a; }
-            .timetable { width: 100%; border-collapse: collapse; }
-            .timetable th, .timetable td { border: 1px solid #ddd; padding: 10px; text-align: left; vertical-align: top; }
-            .timetable th { background: #1a472a; color: white; }
-            .time-col, .time-slot { background: #f5f5f5; font-weight: bold; width: 80px; }
-            .course-cell { background: #e8f5e9; padding: 8px; border-radius: 6px; margin: 2px; }
-            .course-code { font-weight: bold; color: #1a472a; }
-            .footer { margin-top: 20px; font-size: 0.8em; color: #999; }
-        </style>
-    </head>
-    <body>
-        <h1>📖 My Class Schedule</h1>
-        <p><strong>${escapeHtml(currentStudent.name || 'Student')}</strong></p>
-        ${document.getElementById('timetableGrid').innerHTML}
-        <p class="footer">Generated from USTP COR on ${new Date().toLocaleString()}</p>
-    </body>
-    </html>`;
-    
-    const blob = new Blob([htmlContent], { type: 'text/html' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = 'my_timetable.html';
-    link.click();
-    URL.revokeObjectURL(link.href);
+
+
+function loadScript(src) {
+    return new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = src;
+        script.onload = resolve;
+        script.onerror = reject;
+        document.head.appendChild(script);
+    });
 }
 
 function escapeHtml(str) {

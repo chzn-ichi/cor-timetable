@@ -29,13 +29,6 @@ body {
     margin-bottom: 8px;
 }
 
-.header h1 span {
-    background: linear-gradient(135deg, #2563eb, #1e40af);
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
-}
-
 .header p {
     color: #64748b;
     font-size: 0.95rem;
@@ -113,18 +106,10 @@ body {
     color: #1a1a2e;
 }
 
-.student-info {
-    background: #f8fafc;
-    padding: 8px 16px;
-    border-radius: 40px;
-    color: #475569;
-    font-size: 0.85rem;
-    border: 1px solid #e2e8f0;
-}
-
 .btn-group {
     display: flex;
     gap: 12px;
+    flex-wrap: wrap;
 }
 
 button {
@@ -138,17 +123,6 @@ button {
     font-family: inherit;
 }
 
-.btn-export {
-    background: #2563eb;
-    color: white;
-}
-
-.btn-export:hover {
-    background: #1d4ed8;
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
-}
-
 .btn-reset {
     background: #fef3c7;
     color: #d97706;
@@ -160,6 +134,19 @@ button {
     transform: translateY(-1px);
 }
 
+
+.btn-lockscreen {
+    background: #6795db;
+    color: white;
+}
+
+.btn-lockscreen:hover {
+    background: #6795db;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+}
+
+
 /* SCROLLABLE TIMETABLE - 24 HOURS */
 .timetable-wrapper {
     position: relative;
@@ -167,7 +154,6 @@ button {
     border: 1px solid #e2e8f0;
     overflow: auto;
     max-height: 70vh;
-    /* Both horizontal and vertical scroll */
     overflow-x: auto;
     overflow-y: auto;
 }
@@ -192,7 +178,6 @@ button {
     background: #94a3b8;
 }
 
-/* Corner pixel fix for scrollbars */
 .timetable-wrapper::-webkit-scrollbar-corner {
     background: #f1f1f1;
 }
@@ -205,7 +190,7 @@ button {
     font-size: 0.8rem;
 }
 
-/* Sticky Header - Days row stays when scrolling horizontally */
+/* Sticky Header */
 .timetable thead th {
     position: sticky;
     top: 0;
@@ -219,7 +204,7 @@ button {
     min-width: 130px;
 }
 
-/* Sticky Time Column - First column stays when scrolling vertically */
+/* Sticky Time Column */
 .timetable th.time-col,
 .timetable td.time-slot {
     position: sticky;
@@ -230,7 +215,6 @@ button {
     width: 90px;
 }
 
-/* Make sure time column is above other cells */
 .timetable th.time-col {
     z-index: 30;
 }
@@ -249,7 +233,6 @@ button {
     vertical-align: top;
 }
 
-/* Row height for 30-min slots */
 .time-row {
     height: 70px;
     position: relative;
@@ -321,14 +304,12 @@ button {
     height: 70px;
 }
 
-/* Fix for rowspan cells */
 td[rowspan] {
     vertical-align: top;
     position: relative;
     padding: 4px;
 }
 
-/* Ensure the time column stays readable */
 .time-slot {
     background: #f8fafc;
     font-weight: 600;
@@ -339,7 +320,6 @@ td[rowspan] {
     z-index: 10;
 }
 
-/* Spanned cells (hidden) */
 .spanned-cell {
     display: none;
 }
@@ -410,6 +390,129 @@ td[rowspan] {
     100% { transform: rotate(360deg); }
 }
 
+/* ========== LOCKSREEN WALLPAPER STYLES ========== */
+.lockscreen-wallpaper {
+    background: #faf7f0;
+    min-height: 100vh;
+    padding: 40px 28px;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* Title Section */
+.lockscreen-title {
+    text-align: center;
+    margin-bottom: 48px;
+}
+
+.lockscreen-title h1 {
+    font-family: 'Playfair Display', 'Georgia', serif;
+    font-size: 5rem;  /* Was 2.8rem - 80% bigger */
+    font-weight: 600;
+    color: #2c3e4e;
+    letter-spacing: -0.5px;
+    margin-bottom: 0;
+}
+
+/* Schedule Grid */
+.lockscreen-schedule {
+    display: flex;
+    flex-direction: column;
+    gap: 32px;  /* Increased spacing */
+}
+
+/* All Days (Blue Panels) */
+.day-card {
+    background: #e8f0fe;
+    border-radius: 28px;  /* Larger rounded corners */
+    padding: 24px 28px;  /* More padding */
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+}
+
+.day-card .day-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+    padding-bottom: 12px;
+    border-bottom: 2px solid rgba(44, 62, 78, 0.1);
+}
+
+.day-card .day-name {
+    font-size: 2.1rem;  /* Was 1.2rem - 80% bigger */
+    font-weight: 700;
+    color: #2c3e4e;
+    letter-spacing: 0.5px;
+}
+
+/* Class Items */
+.class-list {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;  /* Increased spacing */
+}
+
+.class-item {
+    display: flex;
+    align-items: baseline;
+    gap: 20px;
+    padding: 10px 0;
+    flex-wrap: wrap;
+}
+
+.class-time {
+    min-width: 180px;  /* Was 105px - 80% bigger */
+    font-size: 1.5rem;  /* Was 0.85rem - 80% bigger */
+    font-weight: 500;
+    color: #6b8a9e;
+    font-family: 'SF Mono', 'Menlo', monospace;
+    letter-spacing: -0.3px;
+}
+
+.class-name {
+    flex: 2;
+    font-size: 1.5rem;  
+    font-weight: 700;
+    color: #1a2a3a;
+    letter-spacing: -0.3px;
+}
+
+.class-room {
+    font-size: 1.4rem;  /* Was 0.8rem - 80% bigger */
+    font-weight: 500;
+    color: #5a7a8e;
+    min-width: 150px;  /* Was 90px - 80% bigger */
+    text-align: right;
+}
+
+/* Responsive for smaller screens - scaled proportionally */
+@media (max-width: 640px) {
+    .lockscreen-wallpaper {
+        padding: 30px 20px;
+    }
+    
+    .lockscreen-title h1 {
+        font-size: 3.5rem;
+    }
+    
+    .day-card .day-name {
+        font-size: 1.6rem;
+    }
+    
+    .class-time {
+        min-width: 130px;
+        font-size: 1.1rem;
+    }
+    
+    .class-name {
+        font-size: 1.3rem;
+    }
+    
+    .class-room {
+        font-size: 1rem;
+        min-width: 100px;
+    }
+}
+
 /* Responsive */
 @media (max-width: 768px) {
     body {
@@ -427,6 +530,16 @@ td[rowspan] {
     .timetable-header {
         flex-direction: column;
         align-items: flex-start;
+    }
+    
+    .btn-group {
+        width: 100%;
+        justify-content: flex-start;
+    }
+    
+    button {
+        padding: 6px 14px;
+        font-size: 0.75rem;
     }
     
     .timetable th,
@@ -610,7 +723,6 @@ td[rowspan] {
     box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
 }
 
-/* Mobile responsive for modal */
 @media (max-width: 640px) {
     .modal-content {
         margin: 20% auto;
