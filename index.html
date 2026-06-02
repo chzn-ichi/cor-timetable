@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>COR to Timetable | USTP</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>COR to Timetable Converter</h1>
+            <p>Upload your USTP Certificate of Registration → Editable timetable</p>
+        </div>
+
+        <div class="upload-card">
+            <div class="upload-area" onclick="document.getElementById('fileInput').click()">
+                <div class="upload-icon">📄</div>
+                <p>Click to upload your COR PDF</p>
+                <small>Your file stays on your device. No upload to any server.</small>
+                <input type="file" id="fileInput" accept=".pdf">
+            </div>
+        </div>
+
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>Extracting your schedule...</p>
+        </div>
+
+        <div class="timetable-container" id="timetableContainer">
+            <div class="timetable-header">
+                <h2>Your Class Schedule</h2>
+                <div class="student-info" id="studentInfo"></div>
+                <div class="btn-group">
+                    <button class="btn-reset" id="resetBtn">↺ Reset Edits</button>
+                    <button class="btn-export" id="exportBtn">Export as HTML</button>
+                </div>
+            </div>
+            <div class="timetable-grid" id="timetableGrid"></div>
+            <p class="tip">
+                <strong>Tip:</strong> Click any class to edit course code, room, or time.
+            </p>
+        </div>
+
+        <div id="status"></div>
+    </div>
+
+    <!-- Edit Course Modal -->
+    <div id="editModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Edit Course Schedule</h3>
+                <span class="modal-close">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Course Code</label>
+                    <input type="text" id="editCode" placeholder="e.g., IT221">
+                </div>
+                <div class="form-group">
+                    <label>Subject Title</label>
+                    <input type="text" id="editSubject" placeholder="e.g., Information Management">
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Day</label>
+                        <select id="editDay">
+                            <option value="M">Monday (M)</option>
+                            <option value="T">Tuesday (T)</option>
+                            <option value="W">Wednesday (W)</option>
+                            <option value="Th">Thursday (Th)</option>
+                            <option value="F">Friday (F)</option>
+                            <option value="S">Saturday (S)</option>
+                            <option value="TF">Tuesday & Thursday (TF)</option>
+                            <option value="MTh">Monday & Thursday (MTh)</option>
+                            <option value="MW">Monday & Wednesday (MW)</option>
+                            <option value="MWF">Monday, Wednesday, Friday (MWF)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Start Time</label>
+                        <select id="editStartTime">
+                            <option value="7:00 AM">7:00 AM</option>
+                            <option value="7:30 AM">7:30 AM</option>
+                            <option value="8:00 AM">8:00 AM</option>
+                            <option value="8:30 AM">8:30 AM</option>
+                            <option value="9:00 AM">9:00 AM</option>
+                            <option value="9:30 AM">9:30 AM</option>
+                            <option value="10:00 AM">10:00 AM</option>
+                            <option value="10:30 AM">10:30 AM</option>
+                            <option value="11:00 AM">11:00 AM</option>
+                            <option value="11:30 AM">11:30 AM</option>
+                            <option value="12:00 PM">12:00 PM</option>
+                            <option value="12:30 PM">12:30 PM</option>
+                            <option value="1:00 PM">1:00 PM</option>
+                            <option value="1:30 PM">1:30 PM</option>
+                            <option value="2:00 PM">2:00 PM</option>
+                            <option value="2:30 PM">2:30 PM</option>
+                            <option value="3:00 PM">3:00 PM</option>
+                            <option value="3:30 PM">3:30 PM</option>
+                            <option value="4:00 PM">4:00 PM</option>
+                            <option value="4:30 PM">4:30 PM</option>
+                            <option value="5:00 PM">5:00 PM</option>
+                            <option value="5:30 PM">5:30 PM</option>
+                            <option value="6:00 PM">6:00 PM</option>
+                            <option value="6:30 PM">6:30 PM</option>
+                            <option value="7:00 PM">7:00 PM</option>
+                            <option value="7:30 PM">7:30 PM</option>
+                            <option value="8:00 PM">8:00 PM</option>
+                            <option value="8:30 PM">8:30 PM</option>
+                            <option value="9:00 PM">9:00 PM</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>End Time</label>
+                        <select id="editEndTime">
+                            <option value="8:00 AM">8:00 AM</option>
+                            <option value="8:30 AM">8:30 AM</option>
+                            <option value="9:00 AM">9:00 AM</option>
+                            <option value="9:30 AM">9:30 AM</option>
+                            <option value="10:00 AM">10:00 AM</option>
+                            <option value="10:30 AM">10:30 AM</option>
+                            <option value="11:00 AM">11:00 AM</option>
+                            <option value="11:30 AM">11:30 AM</option>
+                            <option value="12:00 PM">12:00 PM</option>
+                            <option value="12:30 PM">12:30 PM</option>
+                            <option value="1:00 PM">1:00 PM</option>
+                            <option value="1:30 PM">1:30 PM</option>
+                            <option value="2:00 PM">2:00 PM</option>
+                            <option value="2:30 PM">2:30 PM</option>
+                            <option value="3:00 PM">3:00 PM</option>
+                            <option value="3:30 PM">3:30 PM</option>
+                            <option value="4:00 PM">4:00 PM</option>
+                            <option value="4:30 PM">4:30 PM</option>
+                            <option value="5:00 PM">5:00 PM</option>
+                            <option value="5:30 PM">5:30 PM</option>
+                            <option value="6:00 PM">6:00 PM</option>
+                            <option value="6:30 PM">6:30 PM</option>
+                            <option value="7:00 PM">7:00 PM</option>
+                            <option value="7:30 PM">7:30 PM</option>
+                            <option value="8:00 PM">8:00 PM</option>
+                            <option value="8:30 PM">8:30 PM</option>
+                            <option value="9:00 PM">9:00 PM</option>
+                            <option value="9:30 PM">9:30 PM</option>
+                            <option value="10:00 PM">10:00 PM</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Room</label>
+                    <input type="text" id="editRoom" placeholder="e.g., CITC Lab 3, 51-201">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="modal-btn cancel-btn" id="cancelBtn">Cancel</button>
+                <button type="button" class="modal-btn save-btn" id="saveBtn">Save Changes</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
