@@ -104,153 +104,252 @@ async function handleFileUpload(e) {
 async function parseCOR(file) {
     const arrayBuffer = await file.arrayBuffer();
     const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-    const page = await pdf.getPage(1);
-    const textContent = await page.getTextContent();
-    const textItems = textContent.items.map(item => item.str);
     
-    // Join all text for easier searching
-    const fullText = textItems.join(' ');
-    
-    // ========== EXTRACT STUDENT INFO ==========
     currentStudent = {};
-    
-    const nameRegex = /Name:\s*([A-Z][A-Za-z\s,]+?)(?=\s+(?:Student No|Program|Gender|College|$))/i;
-    const studentNoRegex = /Student No:\s*(\d+)/i;
-    const programRegex = /Program:\s*([A-Z][A-Za-z\s.]+?)(?=\s+(?:Gender|Major|Curriculum|Year Level|$))/i;
-    
-    const nameMatch = fullText.match(nameRegex);
-    const studentNoMatch = fullText.match(studentNoRegex);
-    const programMatch = fullText.match(programRegex);
-    
-    if (nameMatch) currentStudent.name = nameMatch[1].trim();
-    if (studentNoMatch) currentStudent.studentNo = studentNoMatch[1];
-    if (programMatch) currentStudent.program = programMatch[1].trim();
-    
-    console.log('✅ Extracted student info:', currentStudent);
-    
-    // ========== EXTRACT COURSES ==========
     const courses = [];
     
-    let i = 0;
-    while (i < textItems.length) {
-        const item = textItems[i].trim();
-        
-        if (!item || item.length < 2) {
-            i++;
-            continue;
+    // Read ALL pages
+    let allItems = [];
+    let fullText = "";
+    
+    for (let p = 1; p <= pdf.numPages; p++) {
+        const page = await pdf.getPage(p);
+        const textContent = await page.getTextContent();
+        allItems.push(...textContent.items);
+        fullText += textContent.items.map(i => i.str).join(" ") + "\n";
+    }
+    
+    // Extract Student Info
+    const nameMatch = fullText.match(/Name:\s*(.+?)\s+Student No:/i);
+    if (nameMatch) currentStudent.name = nameMatch[1].trim();
+    
+    const studentMatch = fullText.match(/Student No:\s*(\d+)/i);
+    if (studentMatch) currentStudent.studentNo = studentMatch[1];
+    
+    const programMatch = fullText.match(/Program:\s*(.+?)\s+(?:Major|Year Level|Gender)/i);
+    if (programMatch) currentStudent.program = programMatch[1].trim();
+    
+    console.log("Student:", currentStudent);
+    
+    // Group by Y coordinate (rows)
+    const rowMap = {};
+    allItems.forEach(item => {
+        const y = Math.round(item.transform[5]);
+        let key = Object.keys(rowMap).find(k => Math.abs(Number(k) - y) <= 2);
+        if (!key) {
+            key = y;
+            rowMap[key] = [];
         }
+        rowMap[key].push(item);
+    });
+    
+    const rows = Object.values(rowMap);
+    rows.forEach(row => row.sort((a, b) => a.transform[4] - b.transform[4]));
+    rows.sort((a, b) => b[0].transform[5] - a[0].transform[5]);
+    
+    // Parse rows - need to look ahead for additional schedules
+    let currentCourse = null;
+    
+    for (let rowIndex = 0; rowIndex < rows.length; rowIndex++) {
+        const row = rows[rowIndex];
+        const texts = row.map(r => r.str.trim()).filter(Boolean);
+        if (texts.length === 0) continue;
         
-        const isFalsePositive = (
-            item === 'CODE' || item === 'SUBJECT' || item === 'TITLE' ||
-            item === 'UNITS' || item === 'SECTION' || item === 'SCHEDULE' ||
-            item === 'ROOM' || item === 'FACULTY' || item === 'Total' ||
-            item === 'Lec' || item === 'Lab' || item === 'Credit' ||
-            item === 'Gender:' || item === 'Major:' || item === 'Student No:' ||
-            item.match(/^Fee$|^FEE$|^Amount$|^DISCOUNT$|^TOTAL$|^PAYMENT$|^Prelim$|^Midterm$|^Prefinal$|^Final$/) ||
-            item.match(/^\d+\.\d{2}$/)
-        );
+        const first = texts[0];
         
-        if (isFalsePositive) {
-            i++;
-            continue;
-        }
-        
+        // Expanded course code detection
         const isCourseCode = (
-            /^[A-Z]{2,6}\s?\d{1,4}$/i.test(item) ||
-            /^[A-Z]{2,8}$/i.test(item)
+            /^[A-Za-z]{2,6}\d{2,4}$/i.test(first.replace(/\s/g, "")) ||
+            /^(Ethc|Rizal|PATH\s*FIT\s*\d+|PurCom|RPH|TCW|MMW|STS)$/i.test(first)
         );
         
-        if (isCourseCode && item.length < 15 && !item.match(/^(Name|Program|Student|Gender|Major|College)/i)) {
-            let schedule = '';
-            let scheduleIndex = i;
-            let subject = '';
-            let section = '';
-            let faculty = '';
-            
-            if (textItems[i+1] && !textItems[i+1].match(/^\d/) && textItems[i+1].length > 2) {
-                subject = textItems[i+1];
-                if (textItems[i+2] && !textItems[i+2].match(/^\d/) && textItems[i+2].length > 2 && textItems[i+2].length < 30) {
-                    subject += ' ' + textItems[i+2];
-                }
+        if (isCourseCode) {
+            // Save previous course
+            if (currentCourse && currentCourse.meetings.length > 0) {
+                courses.push(currentCourse);
             }
             
-            for (let j = i+2; j < Math.min(i+10, textItems.length); j++) {
-                const potential = textItems[j] || '';
-                if (potential.match(/^[A-Z]{2,4}\d+R\d+$/i) || potential.match(/^[A-Z]{3,10}_[A-Z]{2,4}_\d+[A-Z]?$/i)) {
-                    section = potential;
+            // Clean up the code
+            let cleanCode = first.replace(/\s/g, "");
+            if (cleanCode.match(/^PATHFIT/i)) cleanCode = "PATHFIT";
+            
+            currentCourse = {
+                code: cleanCode,
+                subject: "",
+                faculty: "",
+                meetings: []
+            };
+            
+            // Extract subject - stop at section codes
+            let subjectParts = [];
+            let foundSection = false;
+
+            for (let i = 1; i < texts.length; i++) {
+                const text = texts[i];
+                
+                // Stop if we hit a section code pattern
+                if (/^[A-Z]{3,10}_[A-Z]{2,4}_\d+[A-Z]?$/i.test(text)) {
+                    foundSection = true;
+                    break;
+                }
+                
+                // Stop if we hit schedule
+                if (/(AM|PM)/i.test(text)) break;
+                
+                // Stop if we hit faculty
+                if (text.match(/^(Mr\.|Ms\.|Mrs\.|Dr\.|MA\.|Ma\.|Prof\.)/i)) break;
+                
+                // Stop if we hit units
+                if (/^\d+$/.test(text) && text.length <= 2) break;
+                
+                // Add to subject
+                if (text.length > 1) {
+                    subjectParts.push(text);
+                }
+            }
+
+            currentCourse.subject = subjectParts.join(" ").trim();
+            
+            // Extract faculty from current row
+            for (let i = 0; i < texts.length; i++) {
+                if (texts[i].match(/^(Mr\.|Ms\.|Mrs\.|Dr\.|MA\.|Ma\.|Prof\.)/i)) {
+                    currentCourse.faculty = texts.slice(i).join(" ").trim();
                     break;
                 }
             }
             
-            for (let j = i+2; j < Math.min(i+15, textItems.length); j++) {
-                const potential = textItems[j] || '';
-                if (potential.match(/(M|T|W|Th|F|S|TF|MTh|MWF|TTh)\s+\d{1,2}:\d{2}\s*[AP]M/)) {
-                    schedule = potential;
-                    scheduleIndex = j;
-                    break;
-                }
-            }
-            
-            if (!schedule && item.match(/(M|T|W|Th|F|S|TF|MTh|MWF|TTh)\s+\d{1,2}:\d{2}\s*[AP]M/)) {
-                schedule = item;
-                scheduleIndex = i;
-                const schedulePart = item.replace(/^[A-Z]{2,6}\s?\d{1,4}/i, '').trim();
-                if (schedulePart && !subject) {
-                    subject = schedulePart;
-                }
-            }
-            
-            if (scheduleIndex + 1 < textItems.length && textItems[scheduleIndex + 1]) {
-                faculty = textItems[scheduleIndex + 1];
-                if (textItems[scheduleIndex + 2] && textItems[scheduleIndex + 2].match(/^[A-Z]/) && textItems[scheduleIndex + 2].length > 3) {
-                    faculty += ' ' + textItems[scheduleIndex + 2];
-                }
-            }
-            
-            const dayMatch = schedule.match(/^(M|T|W|Th|F|TF|MTh|MWF|TTh)/i);
-            const timeMatch = schedule.match(/(\d{1,2}:\d{2}\s*[AP]M)\s*-\s*(\d{1,2}:\d{2}\s*[AP]M)/i);
-            
-            let room = '';
-            const roomMatch = schedule.match(/\(([^)]+)\)/);
-            if (roomMatch) {
-                room = roomMatch[1];
-            } else {
-                const simpleRoom = schedule.match(/\d{2,3}-\d{3,4}/);
-                if (simpleRoom) room = simpleRoom[0];
-                const modularRoom = schedule.match(/Modular Classroom\s*\d+/i);
-                if (modularRoom) room = modularRoom[0];
-                const labRoom = schedule.match(/CITC\s*Lab\s*\d+/i);
-                if (labRoom) room = labRoom[0];
-                const ciscoRoom = schedule.match(/Cisco\s*Lab\s*\d+/i);
-                if (ciscoRoom) room = ciscoRoom[0];
-            }
-            
-            if (dayMatch && timeMatch) {
-                courses.push({
-                    code: item.replace(/\s/g, ''),
-                    subject: subject.substring(0, 50),
-                    section: section,
-                    day: dayMatch[1],
-                    startTime: timeMatch[1],
-                    endTime: timeMatch[2],
-                    room: room,
-                    faculty: faculty.substring(0, 60),
-                    rawSchedule: schedule
-                });
-            }
-            
-            i = scheduleIndex + 2;
-        } else {
-            i++;
+            // Extract ALL schedule patterns from current row
+            const rowText = texts.join(" ");
+            extractSchedulesFromText(rowText, currentCourse);
+        }
+        
+        // If we have a current course, also check THIS row for additional schedules
+        // (for schedules that appear on separate lines after the course code)
+        if (currentCourse) {
+            const rowText = texts.join(" ");
+            extractSchedulesFromText(rowText, currentCourse);
         }
     }
     
-    console.log('📚 Found courses:', courses.length);
+    // Save last course
+    if (currentCourse && currentCourse.meetings.length > 0) {
+        courses.push(currentCourse);
+    }
+    
+    console.log("Parsed courses with meetings:", courses.map(c => ({
+        code: c.code,
+        subject: c.subject,
+        meetings: c.meetings
+    })));
+    
     return courses;
+}
+
+// Helper function to extract schedules from text
+function extractSchedulesFromText(text, course) {
+    const schedulePattern = /(M|T|W|Th|F|S|TF|MTh|MW|MWF|TTh)\s+(\d{1,2}:\d{2}\s*[AP]M)\s*-\s*(\d{1,2}:\d{2}\s*[AP]M)/gi;
+    let scheduleMatch;
+    
+    while ((scheduleMatch = schedulePattern.exec(text)) !== null) {
+        let day = scheduleMatch[1];
+        let startTime = scheduleMatch[2];
+        let endTime = scheduleMatch[3];
+        
+        // Get the text after the time pattern
+        const afterTime = text.substring(scheduleMatch.index + scheduleMatch[0].length);
+        
+        // Extract room - simplified approach
+        let room = "";
+        
+        // Try to extract room after slash or parentheses
+        const slashMatch = afterTime.match(/^\s*\/\s*([^\/\s]+(?:\s+[^\/\s]+)*?)(?=\s+\/|\s+[A-Z]|$)/);
+        if (slashMatch) {
+            room = slashMatch[1].trim();
+        }
+        
+        // Try parentheses
+        if (!room) {
+            const parenMatch = afterTime.match(/\(([^)]+)\)/);
+            if (parenMatch) {
+                room = parenMatch[1];
+            }
+        }
+        
+        // Try simple room number
+        if (!room) {
+            const simpleRoom = afterTime.match(/\d{2,3}-\d{3,4}/);
+            if (simpleRoom) {
+                room = simpleRoom[0];
+            }
+        }
+        
+        // Try modular classroom
+        if (!room) {
+            const modularRoom = afterTime.match(/Modular Classroom\s*\d+/i);
+            if (modularRoom) {
+                room = modularRoom[0];
+            }
+        }
+        
+        // Try lab room
+        if (!room) {
+            const labRoom = afterTime.match(/[A-Za-z]+\s*Lab\s*\d+/i);
+            if (labRoom) {
+                room = labRoom[0];
+            }
+        }
+        
+        // Clean up room - remove any leftover faculty-like text
+        if (room) {
+            room = room.replace(/\s+(Mr\.|Ms\.|Mrs\.|Dr\.|MA\.|Ma\.|Prof\.|Engr\.).*$/i, '');
+            room = room.replace(/\s+[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*$/, '');
+            room = room.substring(0, 50);
+        }
+        
+        // Handle multi-day codes
+        if (day === 'MTh' || day === 'MTH') {
+            if (!course.meetings.some(m => m.day === 'M' && m.startTime === startTime)) {
+                course.meetings.push({ day: 'M', startTime, endTime, room });
+            }
+            if (!course.meetings.some(m => m.day === 'Th' && m.startTime === startTime)) {
+                course.meetings.push({ day: 'Th', startTime, endTime, room });
+            }
+        } else if (day === 'MW') {
+            if (!course.meetings.some(m => m.day === 'M' && m.startTime === startTime)) {
+                course.meetings.push({ day: 'M', startTime, endTime, room });
+            }
+            if (!course.meetings.some(m => m.day === 'W' && m.startTime === startTime)) {
+                course.meetings.push({ day: 'W', startTime, endTime, room });
+            }
+        } else if (day === 'MWF') {
+            if (!course.meetings.some(m => m.day === 'M' && m.startTime === startTime)) {
+                course.meetings.push({ day: 'M', startTime, endTime, room });
+            }
+            if (!course.meetings.some(m => m.day === 'W' && m.startTime === startTime)) {
+                course.meetings.push({ day: 'W', startTime, endTime, room });
+            }
+            if (!course.meetings.some(m => m.day === 'F' && m.startTime === startTime)) {
+                course.meetings.push({ day: 'F', startTime, endTime, room });
+            }
+        } else if (day === 'TF' || day === 'TTh' || day === 'TTH') {
+            if (!course.meetings.some(m => m.day === 'T' && m.startTime === startTime)) {
+                course.meetings.push({ day: 'T', startTime, endTime, room });
+            }
+            if (!course.meetings.some(m => m.day === 'Th' && m.startTime === startTime)) {
+                course.meetings.push({ day: 'Th', startTime, endTime, room });
+            }
+        } else {
+            // Single day
+            if (!course.meetings.some(m => m.day === day && m.startTime === startTime)) {
+                course.meetings.push({ day, startTime, endTime, room });
+            }
+        }
+    }
 }
 
 function renderTimetableGrid() {
     const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const dayMap = { 'M': 'Monday', 'T': 'Tuesday', 'W': 'Wednesday', 'Th': 'Thursday', 'F': 'Friday', 'S': 'Saturday' };
     
     const times = [];
     for (let hour = 0; hour <= 23; hour++) {
@@ -267,28 +366,32 @@ function renderTimetableGrid() {
         }
     }
     
+    // Iterate over course.meetings
     for (const course of currentCourses) {
-        if (!course.startTime || !course.day) continue;
+        if (!course.meetings || course.meetings.length === 0) continue;
         
-        const courseDays = getDaysArray(course.day);
-        const startFloat = timeToFloat(course.startTime);
-        const endFloat = timeToFloat(course.endTime);
-        const startHour = Math.floor(startFloat);
-        const startSlotIndex = startHour;
-        const durationHours = endFloat - startFloat;
-        const endHour = Math.ceil(endFloat);
-        const rowspan = Math.max(1, endHour - startHour);
-        
-        if (startSlotIndex < 0 || startSlotIndex >= times.length) continue;
-        
-        const startMinutesPastHour = (startFloat - startHour) * 60;
-        const topOffset = (startMinutesPastHour / 60) * 70;
-        const heightPx = Math.max(30, durationHours * 70);
-        
-        for (const day of courseDays) {
-            if (!grid[day][startSlotIndex]) {
-                grid[day][startSlotIndex] = {
+        for (const meeting of course.meetings) {
+            const fullDay = dayMap[meeting.day];
+            if (!fullDay) continue;
+            
+            const startFloat = timeToFloat(meeting.startTime);
+            const endFloat = timeToFloat(meeting.endTime);
+            const startHour = Math.floor(startFloat);
+            const startSlotIndex = startHour;
+            const durationHours = endFloat - startFloat;
+            const endHour = Math.ceil(endFloat);
+            const rowspan = Math.max(1, endHour - startHour);
+            
+            if (startSlotIndex < 0 || startSlotIndex >= times.length) continue;
+            
+            const startMinutesPastHour = (startFloat - startHour) * 60;
+            const topOffset = (startMinutesPastHour / 60) * 70;
+            const heightPx = Math.max(30, durationHours * 70);
+            
+            if (!grid[fullDay][startSlotIndex]) {
+                grid[fullDay][startSlotIndex] = {
                     course: course,
+                    meeting: meeting,
                     duration: rowspan,
                     topOffset: topOffset,
                     heightPx: heightPx,
@@ -337,11 +440,12 @@ function renderTimetableGrid() {
                 html += `<td class="course-cell-wrapper" rowspan="${rowspan}" style="position: relative; vertical-align: top;">`;
                 html += `
                     <div class="course-cell" onclick="editCourse('${escapeHtml(cell.course.code)}')" 
-                         style="position: absolute; top: ${cell.topOffset}px; left: 4px; right: 4px; height: ${cell.heightPx}px; min-height: 30px;">
+                        style="position: absolute; top: ${cell.topOffset}px; left: 4px; right: 4px; height: ${cell.heightPx}px; min-height: 30px;">
                         <div class="course-code">${escapeHtml(cell.course.code)}</div>
                         <div class="course-subject">${escapeHtml((cell.course.subject || '').substring(0, 35))}</div>
-                        <div class="course-time">${escapeHtml(cell.course.startTime)} - ${escapeHtml(cell.course.endTime)}</div>
-                        <div class="course-room">${escapeHtml(cell.course.room || 'TBA')}</div>
+                        <div class="course-time">${escapeHtml(cell.meeting.startTime)} - ${escapeHtml(cell.meeting.endTime)}</div>
+                        <div class="course-room">${escapeHtml(cell.meeting.room || 'Online Class')}</div>
+                        ${cell.course.faculty ? `<div class="course-faculty">${escapeHtml(cell.course.faculty.substring(0, 30))}</div>` : ''}
                     </div>
                 `;
                 html += `</td>`;
@@ -354,7 +458,7 @@ function renderTimetableGrid() {
     }
     
     html += `</tbody>`;
-    html += `</table>`;
+    html += `<td>`;
     html += `</div>`;
     
     document.getElementById('timetableGrid').innerHTML = html;
@@ -375,19 +479,107 @@ function timeToFloat(timeStr) {
 
 function getDaysArray(dayCode) {
     const map = {
+        // Single days
         'M': ['Monday'],
         'T': ['Tuesday'],
         'W': ['Wednesday'],
         'Th': ['Thursday'],
         'F': ['Friday'],
         'S': ['Saturday'],
-        'TF': ['Tuesday', 'Thursday'],
-        'TTh': ['Tuesday', 'Thursday'],
-        'MTh': ['Monday', 'Thursday'],
+        
+        // Two-day combinations
+        'MF': ['Monday', 'Friday'],
         'MW': ['Monday', 'Wednesday'],
-        'MWF': ['Monday', 'Wednesday', 'Friday']
+        'MTh': ['Monday', 'Thursday'],
+        'MT': ['Monday', 'Tuesday'],
+        'TTh': ['Tuesday', 'Thursday'],
+        'TW': ['Tuesday', 'Wednesday'],
+        'TF': ['Tuesday', 'Friday'],
+        'WTh': ['Wednesday', 'Thursday'],
+        'WF': ['Wednesday', 'Friday'],
+        'ThF': ['Thursday', 'Friday'],
+        'ThS': ['Thursday', 'Saturday'],
+        'FS': ['Friday', 'Saturday'],
+        
+        // Three-day combinations
+        'MWF': ['Monday', 'Wednesday', 'Friday'],
+        'MThF': ['Monday', 'Thursday', 'Friday'],
+        'MTW': ['Monday', 'Tuesday', 'Wednesday'],
+        'TWS': ['Tuesday', 'Wednesday', 'Saturday'],
+        'TThS': ['Tuesday', 'Thursday', 'Saturday'],
+        'WFS': ['Wednesday', 'Friday', 'Saturday'],
+        
+        // Four-day combinations
+        'MTWTh': ['Monday', 'Tuesday', 'Wednesday', 'Thursday'],
+        'MTWF': ['Monday', 'Tuesday', 'Wednesday', 'Friday'],
+        'MTThF': ['Monday', 'Tuesday', 'Thursday', 'Friday'],
+        'MWThF': ['Monday', 'Wednesday', 'Thursday', 'Friday'],
+        
+        // Five-day combinations
+        'MTWThF': ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
+        
+        // Common aliases (some CORs use different formats)
+        'TUE': ['Tuesday'],
+        'WED': ['Wednesday'],
+        'THU': ['Thursday'],
+        'FRI': ['Friday'],
+        'SAT': ['Saturday'],
+        'SUN': ['Sunday'],
+        'TTH': ['Tuesday', 'Thursday'],
+        'MTH': ['Monday', 'Thursday'],
+        'TTHF': ['Tuesday', 'Thursday', 'Friday'],
+        'MWTH': ['Monday', 'Wednesday', 'Thursday'],
+        
+        // With spaces (some PDFs extract with spaces)
+        'M W': ['Monday', 'Wednesday'],
+        'M W F': ['Monday', 'Wednesday', 'Friday'],
+        'T TH': ['Tuesday', 'Thursday'],
+        'T TH F': ['Tuesday', 'Thursday', 'Friday'],
+        'M TH': ['Monday', 'Thursday'],
     };
-    return map[dayCode] || [dayCode];
+    
+    // Direct lookup
+    if (map[dayCode]) return map[dayCode];
+    
+    // Try uppercase version
+    if (map[dayCode.toUpperCase()]) return map[dayCode.toUpperCase()];
+    
+    // Remove spaces and try again
+    const noSpaces = dayCode.replace(/\s/g, '');
+    if (map[noSpaces]) return map[noSpaces];
+    
+    // Handle "TF" (some CORs use TF for Tuesday/Thursday)
+    if (dayCode === 'TF' || dayCode === 'T F') return ['Tuesday', 'Thursday'];
+    
+    // Handle "MTh" variations
+    if (dayCode.match(/M\s*Th/i)) return ['Monday', 'Thursday'];
+    
+    // Handle "MWF" variations
+    if (dayCode.match(/M\s*W\s*F/i)) return ['Monday', 'Wednesday', 'Friday'];
+    
+    // Fallback: try to parse individual letters
+    const days = [];
+    const letters = dayCode.toUpperCase().match(/[MTWFHS]/g);
+    if (letters) {
+        const letterMap = {
+            'M': 'Monday',
+            'T': 'Tuesday',
+            'W': 'Wednesday',
+            'F': 'Friday',
+            'H': 'Thursday',  // Some use H for Thursday
+            'S': 'Saturday'
+        };
+        for (const letter of letters) {
+            if (letterMap[letter] && !days.includes(letterMap[letter])) {
+                days.push(letterMap[letter]);
+            }
+        }
+        if (days.length > 0) return days;
+    }
+    
+    // Default: return as single item array
+    console.warn(`Unknown day code: ${dayCode}`);
+    return [dayCode];
 }
 
 function editCourse(courseCode) {
@@ -396,34 +588,56 @@ function editCourse(courseCode) {
     
     currentEditingCourse = course;
     
+    // For simplicity, show first meeting's data in modal
+    const firstMeeting = course.meetings[0] || {};
+    
     document.getElementById('editCode').value = course.code;
     document.getElementById('editSubject').value = course.subject || '';
-    document.getElementById('editDay').value = course.day;
-    document.getElementById('editStartTime').value = course.startTime;
-    document.getElementById('editEndTime').value = course.endTime;
-    document.getElementById('editRoom').value = course.room || '';
+    document.getElementById('editDay').value = firstMeeting.day || '';
+    document.getElementById('editStartTime').value = firstMeeting.startTime || '';
+    document.getElementById('editEndTime').value = firstMeeting.endTime || '';
+    document.getElementById('editRoom').value = firstMeeting.room || '';
+    document.getElementById('editFaculty').value = course.faculty || '';
     
     document.getElementById('editModal').style.display = 'block';
-}
-
-function closeModal() {
-    document.getElementById('editModal').style.display = 'none';
-    currentEditingCourse = null;
 }
 
 function saveCourseEdits() {
     if (!currentEditingCourse) return;
     
+    // Update course basic info
     currentEditingCourse.code = document.getElementById('editCode').value.trim();
     currentEditingCourse.subject = document.getElementById('editSubject').value.trim();
-    currentEditingCourse.day = document.getElementById('editDay').value;
-    currentEditingCourse.startTime = document.getElementById('editStartTime').value;
-    currentEditingCourse.endTime = document.getElementById('editEndTime').value;
-    currentEditingCourse.room = document.getElementById('editRoom').value.trim();
+    currentEditingCourse.faculty = document.getElementById('editFaculty').value.trim();
+    
+    // Update ALL meetings with new values
+    const newDay = document.getElementById('editDay').value;
+    const newStartTime = document.getElementById('editStartTime').value;
+    const newEndTime = document.getElementById('editEndTime').value;
+    const newRoom = document.getElementById('editRoom').value.trim();
+    
+    // Expand multi-day codes
+    const expandedDays = getDaysArray(newDay);
+    const dayShortMap = { 'Monday': 'M', 'Tuesday': 'T', 'Wednesday': 'W', 'Thursday': 'Th', 'Friday': 'F', 'Saturday': 'S' };
+    
+    currentEditingCourse.meetings = [];
+    for (const fullDay of expandedDays) {
+        currentEditingCourse.meetings.push({
+            day: dayShortMap[fullDay],
+            startTime: newStartTime,
+            endTime: newEndTime,
+            room: newRoom
+        });
+    }
     
     renderTimetableGrid();
     showStatus('✅ Schedule updated successfully!', 'success');
     closeModal();
+}
+
+function closeModal() {
+    document.getElementById('editModal').style.display = 'none';
+    currentEditingCourse = null;
 }
 
 function resetToOriginal() {
@@ -443,31 +657,37 @@ async function generateLockscreen() {
     
     showLoading(true);
     
-    // Group courses by day
-    const daysOrder = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const dayMap = { 'M': 'Monday', 'T': 'Tuesday', 'W': 'Wednesday', 'Th': 'Thursday', 'F': 'Friday', 'S': 'Saturday' };
+    const fullDayMap = { 'Monday': 'MON', 'Tuesday': 'TUE', 'Wednesday': 'WED', 'Thursday': 'THU', 'Friday': 'FRI', 'Saturday': 'SAT' };
+    
+    // Group courses by day using meetings
     const scheduleByDay = {};
+    const daysOrder = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
     daysOrder.forEach(day => { scheduleByDay[day] = []; });
     
     for (const course of currentCourses) {
-        if (!course.startTime || !course.day) continue;
-        const days = getDaysArray(course.day);
-        for (const day of days) {
-            scheduleByDay[day].push({
+        if (!course.meetings || course.meetings.length === 0) continue;
+        
+        for (const meeting of course.meetings) {
+            const fullDay = dayMap[meeting.day];
+            if (!fullDay) continue;
+            
+            scheduleByDay[fullDay].push({
                 code: course.code,
                 name: course.subject || course.code,
-                startTime: course.startTime,
-                endTime: course.endTime,
-                room: course.room
+                startTime: meeting.startTime,
+                endTime: meeting.endTime,
+                room: meeting.room
             });
         }
     }
     
-    // Sort classes by time
+    // Sort classes by time for each day
     for (const day in scheduleByDay) {
         scheduleByDay[day].sort((a, b) => timeToFloat(a.startTime) - timeToFloat(b.startTime));
     }
     
-    // ONLY include days that have classes
+    // Only include days that have classes
     const daysWithClasses = daysOrder.filter(day => scheduleByDay[day].length > 0);
     
     if (daysWithClasses.length === 0) {
@@ -485,10 +705,9 @@ async function generateLockscreen() {
     
     for (const day of daysWithClasses) {
         const classes = scheduleByDay[day];
-        const dayClass = 'day-card';
-        const shortDay = day.substring(0, 3).toUpperCase();
+        const shortDay = fullDayMap[day];
         
-        html += `<div class="${dayClass}">`;
+        html += `<div class="day-card">`;
         html += `<div class="day-header">`;
         html += `<span class="day-name">${shortDay}</span>`;
         html += `</div>`;
@@ -508,7 +727,7 @@ async function generateLockscreen() {
     }
     
     html += `</div>`;
-    html += `</div>`; // No footer
+    html += `</div>`;
     
     // Store original and show lockscreen
     const gridContainer = document.getElementById('timetableGrid');
@@ -523,22 +742,12 @@ async function generateLockscreen() {
         }
         
         try {
-            // Get natural dimensions without stretching
-            const rect = element.getBoundingClientRect();
-            
-            // Create canvas at natural scale
             const canvas = await html2canvas(element, {
                 scale: 2.5,
                 backgroundColor: '#faf7f0',
-                logging: false,
-                windowWidth: rect.width,
-                windowHeight: rect.height,
-                onclone: (clonedDoc, element) => {
-                    // Ensure cloned element has correct styling
-                }
+                logging: false
             });
             
-            // Don't force 1080x1920 - keep natural proportions
             const link = document.createElement('a');
             link.download = 'lockscreen_schedule.png';
             link.href = canvas.toDataURL('image/png');
@@ -554,8 +763,6 @@ async function generateLockscreen() {
         }
     }, 200);
 }
-
-
 
 function loadScript(src) {
     return new Promise((resolve, reject) => {

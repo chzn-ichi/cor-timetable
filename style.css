@@ -299,6 +299,13 @@ button {
     gap: 4px;
 }
 
+.course-faculty {
+    font-size: 0.6rem;
+    color: #6b8a9e;
+    margin-top: 4px;
+    font-style: italic;
+}
+
 .empty-cell {
     background-color: #ffffff;
     height: 70px;
