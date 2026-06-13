@@ -6,7 +6,7 @@
 
 A web-based tool that extracts course schedules from USTP COR PDFs and generates a clean, editable timetable. Perfect for students who want a quick overview of their weekly schedule or a beautiful lockscreen wallpaper for their phone.
 
-## ✨ Features
+## Features
 
 | Feature | Description |
 |---------|-------------|
