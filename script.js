@@ -5,42 +5,125 @@ let originalCourses = [];
 let currentCourses = [];
 let currentStudent = {};
 let currentEditingCourse = null;
+let currentEditingMeetingIndex = null;
+
 
 document.addEventListener('DOMContentLoaded', () => {
     const fileInput = document.getElementById('fileInput');
     const resetBtn = document.getElementById('resetBtn');
     const lockscreenBtn = document.getElementById('lockscreenBtn');
     
+    // Lockscreen modal handlers
+    const lockscreenModal = document.getElementById('lockscreenModal');
+    const cancelLockscreenBtn = document.getElementById('cancelLockscreenBtn');
+    const generateLockscreenBtn = document.getElementById('generateLockscreenBtn');
+    const lockscreenCloseBtn = document.querySelector('.lockscreen-modal-close');
+
+    if (cancelLockscreenBtn) cancelLockscreenBtn.onclick = closeLockscreenModal;
+    if (generateLockscreenBtn) generateLockscreenBtn.onclick = generateLockscreenImage;
+    if (lockscreenCloseBtn) lockscreenCloseBtn.onclick = closeLockscreenModal;
+
+    // Toggle custom size inputs in lockscreen modal
+    const lockscreenSizeSelect = document.getElementById('lockscreenSize');
+    const lockscreenCustomContainer = document.getElementById('lockscreenCustomContainer');
+    if (lockscreenSizeSelect) {
+        lockscreenSizeSelect.addEventListener('change', () => {
+            lockscreenCustomContainer.style.display = lockscreenSizeSelect.value === 'custom' ? 'block' : 'none';
+        });
+    }
+
+    // Padding slider
+    const paddingSlider = document.getElementById('paddingSlider');
+    const paddingValue = document.getElementById('paddingValue');
+    if (paddingSlider) {
+        paddingSlider.addEventListener('input', () => {
+            paddingValue.textContent = paddingSlider.value;
+        });
+    }
+    
+    // File upload and buttons
     fileInput.addEventListener('change', handleFileUpload);
     resetBtn.addEventListener('click', resetToOriginal);
+    document.getElementById('addCourseBtn').addEventListener('click', openAddModal);
+    document.getElementById('saveAddBtn').addEventListener('click', addCourse);
+    document.querySelector('.add-modal-close')?.addEventListener('click', closeAddModal);
+    document.getElementById('cancelAddBtn')?.addEventListener('click', closeAddModal);
+    document.getElementById('deleteBtn')?.addEventListener('click', deleteCurrentMeeting);
     if (lockscreenBtn) lockscreenBtn.addEventListener('click', generateLockscreen);
     
-    // Modal close handlers
-    const modal = document.getElementById('editModal');
-    const closeBtn = document.querySelector('.modal-close');
+    // Edit Modal close handlers
+    const editModal = document.getElementById('editModal');
+    const editCloseBtn = document.querySelector('#editModal .modal-close');
     const cancelBtn = document.getElementById('cancelBtn');
     const saveBtn = document.getElementById('saveBtn');
     
-    if (closeBtn) closeBtn.onclick = closeModal;
+    if (editCloseBtn) editCloseBtn.onclick = closeModal;
     if (cancelBtn) cancelBtn.onclick = closeModal;
     if (saveBtn) saveBtn.onclick = saveCourseEdits;
     
-    // Click outside to close
+    // Add conflict checking to Add Modal
+    const addDay = document.getElementById('addDay');
+    const addStartTime = document.getElementById('addStartTime');
+    const addEndTime = document.getElementById('addEndTime');
+
+    if (addDay) addDay.addEventListener('change', checkAddConflict);
+    if (addStartTime) addStartTime.addEventListener('change', checkAddConflict);
+    if (addEndTime) addEndTime.addEventListener('change', checkAddConflict);
+
+    // Delete confirmation modal handlers
+    const deleteConfirmModal = document.getElementById('deleteConfirmModal');
+    const deleteConfirmBtn = document.getElementById('deleteConfirmBtn');
+    const deleteCancelBtn = document.getElementById('deleteCancelBtn');
+    const deleteConfirmClose = document.querySelector('.delete-confirm-close');
+
+    if (deleteConfirmBtn) deleteConfirmBtn.onclick = confirmDelete;
+    if (deleteCancelBtn) deleteCancelBtn.onclick = closeDeleteModal;
+    if (deleteConfirmClose) deleteConfirmClose.onclick = closeDeleteModal;
+    
+    // Real-time validation for Add Modal
+    const addCodeInput = document.getElementById('addCode');
+    if (addCodeInput) {
+        addCodeInput.addEventListener('input', validateAddModal);
+    }
+
+    // Real-time validation for Edit Modal
+    const editCodeInput = document.getElementById('editCode');
+    if (editCodeInput) {
+        editCodeInput.addEventListener('input', validateEditModal);
+    }
+    
+    // ========== SINGLE WINDOW.ONCLICK HANDLER ==========
     window.onclick = function(event) {
-        if (event.target === modal) {
+        // Close lockscreen modal
+        if (event.target === lockscreenModal) {
+            closeLockscreenModal();
+        }
+        // Close edit modal
+        if (event.target === editModal) {
             closeModal();
+        }
+        // Close delete confirmation modal
+        if (event.target === deleteConfirmModal) {
+            closeDeleteModal();
+        }
+        // Close add modal
+        const addModal = document.getElementById('addModal');
+        if (event.target === addModal) {
+            closeAddModal();
         }
     };
     
     showDemoGrid();
 });
 
+
 function showDemoGrid() {
     const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
     const times = [];
-    for (let hour = 0; hour <= 23; hour++) {
+    for (let hour = 5; hour <= 23; hour++) {
         const period = hour >= 12 ? 'PM' : 'AM';
-        const displayHour = hour === 0 ? 12 : (hour > 12 ? hour - 12 : hour);
+        let displayHour = hour % 12;
+        if (displayHour === 0) displayHour = 12;
         times.push(`${displayHour}:00 ${period}`);
     }
     
@@ -90,7 +173,6 @@ async function handleFileUpload(e) {
         currentCourses = JSON.parse(JSON.stringify(courses));
         
         renderTimetableGrid();
-        showStatus(`✅ Loaded ${courses.length} courses! Click any class to edit.`, 'success');
         
     } catch (error) {
         console.error('Parse error:', error);
@@ -352,9 +434,10 @@ function renderTimetableGrid() {
     const dayMap = { 'M': 'Monday', 'T': 'Tuesday', 'W': 'Wednesday', 'Th': 'Thursday', 'F': 'Friday', 'S': 'Saturday' };
     
     const times = [];
-    for (let hour = 0; hour <= 23; hour++) {
+    for (let hour = 5; hour <= 23; hour++) {
         const period = hour >= 12 ? 'PM' : 'AM';
-        const displayHour = hour === 0 ? 12 : (hour > 12 ? hour - 12 : hour);
+        let displayHour = hour % 12;
+        if (displayHour === 0) displayHour = 12;
         times.push(`${displayHour}:00 ${period}`);
     }
     
@@ -377,7 +460,7 @@ function renderTimetableGrid() {
             const startFloat = timeToFloat(meeting.startTime);
             const endFloat = timeToFloat(meeting.endTime);
             const startHour = Math.floor(startFloat);
-            const startSlotIndex = startHour;
+            const startSlotIndex = startHour - 5;
             const durationHours = endFloat - startFloat;
             const endHour = Math.ceil(endFloat);
             const rowspan = Math.max(1, endHour - startHour);
@@ -411,10 +494,7 @@ function renderTimetableGrid() {
     html += '</thead><tbody>';
     
     for (let slotIdx = 0; slotIdx < times.length; slotIdx++) {
-        const hour = slotIdx;
-        const displayHour = hour === 0 ? 12 : (hour > 12 ? hour - 12 : hour);
-        const period = hour >= 12 ? 'PM' : 'AM';
-        const timeLabel = `${displayHour}:00 ${period}`;
+        const timeLabel = times[slotIdx];  // Just use the pre-formatted time
         
         html += `<tr class="time-row" data-slot="${slotIdx}" style="height: 70px;">`;
         html += `<td class="time-slot"><strong>${timeLabel}</strong></td>`;
@@ -439,12 +519,12 @@ function renderTimetableGrid() {
                 const rowspan = cell.duration;
                 html += `<td class="course-cell-wrapper" rowspan="${rowspan}" style="position: relative; vertical-align: top;">`;
                 html += `
-                    <div class="course-cell" onclick="editCourse('${escapeHtml(cell.course.code)}')" 
-                        style="position: absolute; top: ${cell.topOffset}px; left: 4px; right: 4px; height: ${cell.heightPx}px; min-height: 30px;">
+                    <div class="course-cell" onclick="editCourse('${escapeHtml(cell.course.code)}', '${escapeHtml(cell.meeting.day)}', '${escapeHtml(cell.meeting.startTime)}')" 
+                        style="position: absolute; top: calc(${cell.topOffset}px + 2px); left: 2px; right: 2px; height: calc(${cell.heightPx}px - 5px); min-height: 30px;">
                         <div class="course-code">${escapeHtml(cell.course.code)}</div>
                         <div class="course-subject">${escapeHtml((cell.course.subject || '').substring(0, 35))}</div>
                         <div class="course-time">${escapeHtml(cell.meeting.startTime)} - ${escapeHtml(cell.meeting.endTime)}</div>
-                        <div class="course-room">${escapeHtml(cell.meeting.room || 'Online Class')}</div>
+                        <div class="course-room">${escapeHtml(cell.meeting.room || 'TBA')}</div>
                         ${cell.course.faculty ? `<div class="course-faculty">${escapeHtml(cell.course.faculty.substring(0, 30))}</div>` : ''}
                     </div>
                 `;
@@ -582,22 +662,32 @@ function getDaysArray(dayCode) {
     return [dayCode];
 }
 
-function editCourse(courseCode) {
+function editCourse(courseCode, meetingDay, meetingStartTime) {
     const course = currentCourses.find(c => c.code === courseCode);
     if (!course) return;
     
     currentEditingCourse = course;
     
-    // For simplicity, show first meeting's data in modal
-    const firstMeeting = course.meetings[0] || {};
+    // Find which meeting is being edited
+    const meetingIndex = course.meetings.findIndex(m => m.day === meetingDay && m.startTime === meetingStartTime);
+    currentEditingMeetingIndex = meetingIndex;
+    const meeting = course.meetings[meetingIndex] || course.meetings[0];
     
     document.getElementById('editCode').value = course.code;
     document.getElementById('editSubject').value = course.subject || '';
-    document.getElementById('editDay').value = firstMeeting.day || '';
-    document.getElementById('editStartTime').value = firstMeeting.startTime || '';
-    document.getElementById('editEndTime').value = firstMeeting.endTime || '';
-    document.getElementById('editRoom').value = firstMeeting.room || '';
+    document.getElementById('editDay').value = meeting.day || '';
+    document.getElementById('editStartTime').value = meeting.startTime || '';
+    document.getElementById('editEndTime').value = meeting.endTime || '';
+    document.getElementById('editRoom').value = meeting.room || '';
     document.getElementById('editFaculty').value = course.faculty || '';
+    
+    validateEditModal();
+    
+    // Delete button always visible
+    const deleteBtn = document.getElementById('deleteBtn');
+    if (deleteBtn) {
+        deleteBtn.style.display = 'inline-block';
+    }
     
     document.getElementById('editModal').style.display = 'block';
 }
@@ -610,29 +700,320 @@ function saveCourseEdits() {
     currentEditingCourse.subject = document.getElementById('editSubject').value.trim();
     currentEditingCourse.faculty = document.getElementById('editFaculty').value.trim();
     
-    // Update ALL meetings with new values
+    // Update the specific meeting
     const newDay = document.getElementById('editDay').value;
     const newStartTime = document.getElementById('editStartTime').value;
     const newEndTime = document.getElementById('editEndTime').value;
     const newRoom = document.getElementById('editRoom').value.trim();
     
-    // Expand multi-day codes
-    const expandedDays = getDaysArray(newDay);
-    const dayShortMap = { 'Monday': 'M', 'Tuesday': 'T', 'Wednesday': 'W', 'Thursday': 'Th', 'Friday': 'F', 'Saturday': 'S' };
-    
-    currentEditingCourse.meetings = [];
-    for (const fullDay of expandedDays) {
-        currentEditingCourse.meetings.push({
-            day: dayShortMap[fullDay],
+    if (currentEditingMeetingIndex !== null && currentEditingCourse.meetings[currentEditingMeetingIndex]) {
+        // Update existing meeting
+        currentEditingCourse.meetings[currentEditingMeetingIndex] = {
+            day: newDay,
             startTime: newStartTime,
             endTime: newEndTime,
             room: newRoom
+        };
+    } else {
+        // Fallback: update all meetings (should not happen normally)
+        const expandedDays = getDaysArray(newDay);
+        const dayShortMap = { 'Monday': 'M', 'Tuesday': 'T', 'Wednesday': 'W', 'Thursday': 'Th', 'Friday': 'F', 'Saturday': 'S' };
+        
+        currentEditingCourse.meetings = [];
+        for (const fullDay of expandedDays) {
+            currentEditingCourse.meetings.push({
+                day: dayShortMap[fullDay],
+                startTime: newStartTime,
+                endTime: newEndTime,
+                room: newRoom
+            });
+        }
+    }
+    
+    renderTimetableGrid();
+    showStatus('Schedule updated successfully!', 'success');
+    closeModal();
+}
+
+function floatToTime(floatVal) {
+    let hours = Math.floor(floatVal);
+    const minutes = Math.round((floatVal - hours) * 60);
+    const period = hours >= 12 ? 'PM' : 'AM';
+    let displayHour = hours % 12;
+    if (displayHour === 0) displayHour = 12;
+    const minuteStr = minutes === 0 ? '00' : minutes;
+    return `${displayHour}:${minuteStr} ${period}`;
+}
+
+function getConflictingCourse(day, startTime, endTime, excludeCourseCode = null) {
+    const dayMap = { 'M': 'Monday', 'T': 'Tuesday', 'W': 'Wednesday', 'Th': 'Thursday', 'F': 'Friday', 'S': 'Saturday' };
+    const fullDay = dayMap[day];
+    
+    for (const course of currentCourses) {
+        if (excludeCourseCode && course.code === excludeCourseCode) continue;
+        
+        for (const meeting of course.meetings) {
+            if (meeting.day !== day) continue;
+            
+            const newStart = timeToFloat(startTime);
+            const newEnd = timeToFloat(endTime);
+            const existingStart = timeToFloat(meeting.startTime);
+            const existingEnd = timeToFloat(meeting.endTime);
+            
+            // Check if time ranges overlap
+            if (newStart < existingEnd && newEnd > existingStart) {
+                return course;
+            }
+        }
+    }
+    return null;
+}
+
+
+function getAvailableTimeSlots(selectedDay, currentStartTime = null, currentEndTime = null, excludeCourseCode = null) {
+    const allTimeSlots = [
+        '7:00 AM', '7:30 AM', '8:00 AM', '8:30 AM', '9:00 AM', '9:30 AM',
+        '10:00 AM', '10:30 AM', '11:00 AM', '11:30 AM', '12:00 PM', '12:30 PM',
+        '1:00 PM', '1:30 PM', '2:00 PM', '2:30 PM', '3:00 PM', '3:30 PM',
+        '4:00 PM', '4:30 PM', '5:00 PM', '5:30 PM', '6:00 PM', '6:30 PM',
+        '7:00 PM', '7:30 PM', '8:00 PM', '8:30 PM', '9:00 PM', '9:30 PM', '10:00 PM'
+    ];
+    
+    const availableSlots = [];
+    
+    for (const startTime of allTimeSlots) {
+        // Calculate default end time (1 hour later)
+        const startFloat = timeToFloat(startTime);
+        let endFloat = startFloat + 1;
+        let endTime = floatToTime(endFloat);
+        
+        // Check if this slot conflicts
+        const conflict = getConflictingCourse(selectedDay, startTime, endTime, excludeCourseCode);
+        
+        availableSlots.push({
+            startTime: startTime,
+            endTime: endTime,
+            available: !conflict,
+            conflictCourse: conflict ? conflict.code : null
+        });
+    }
+    
+    return availableSlots;
+}
+
+function checkAddConflict() {
+    const day = document.getElementById('addDay').value;
+    const startTime = document.getElementById('addStartTime').value;
+    const endTime = document.getElementById('addEndTime').value;
+    const warning = document.getElementById('addConflictWarning');
+    const saveBtn = document.getElementById('saveAddBtn');
+    
+    const conflict = getConflictingCourse(day, startTime, endTime);
+    
+    if (conflict) {
+        warning.style.display = 'block';
+        warning.innerHTML = `<strong>Schedule Conflict!</strong> This time overlaps with <strong>${conflict.code}</strong> (${conflict.subject || 'Unknown'}). Please choose a different time.`;
+        if (saveBtn) {
+            saveBtn.disabled = true;
+            saveBtn.style.opacity = '0.5';
+            saveBtn.style.cursor = 'not-allowed';
+        }
+    } else {
+        warning.style.display = 'none';
+        if (saveBtn) {
+            saveBtn.disabled = false;
+            saveBtn.style.opacity = '1';
+            saveBtn.style.cursor = 'pointer';
+        }
+    }
+}
+
+
+function addCourse() {
+    const code = document.getElementById('addCode').value.trim();
+    const subject = document.getElementById('addSubject').value.trim();
+    const faculty = document.getElementById('addFaculty').value.trim();
+    const day = document.getElementById('addDay').value;
+    const startTime = document.getElementById('addStartTime').value;
+    const endTime = document.getElementById('addEndTime').value;
+    const room = document.getElementById('addRoom').value.trim();
+    
+    // Clear previous error styling
+    document.getElementById('addCode').style.borderColor = '';
+    document.getElementById('addCode').style.backgroundColor = '';
+    
+    // Validation
+    if (!code) {
+        showStatus('Course Code is required.', 'error');
+        validateAddModal();
+        // Highlight the empty field
+        document.getElementById('addCode').style.borderColor = '#ef4444';
+        document.getElementById('addCode').style.backgroundColor = '#fef2f2';
+        document.getElementById('addCode').focus();
+        return;
+    }
+    
+    // Optional: Add validation for duplicate course code warning
+    const existingCourse = currentCourses.find(c => c.code === code);
+    if (existingCourse) {
+        if (!confirm(`"${code}" already exists.\n\nDo you want to add a new meeting time to this existing course?`)) {
+            return;
+        }
+    }
+    
+    // Final conflict check before saving
+    const conflict = getConflictingCourse(day, startTime, endTime);
+    if (conflict) {
+        showStatus(`Cannot add: Time conflicts with ${conflict.code}`, 'error');
+        return;
+    }
+    
+    // Rest of your addCourse code continues here...
+    const expandedDays = getDaysArray(day);
+    const dayShortMap = { 'Monday': 'M', 'Tuesday': 'T', 'Wednesday': 'W', 'Thursday': 'Th', 'Friday': 'F', 'Saturday': 'S' };
+    
+    const meetings = [];
+    for (const fullDay of expandedDays) {
+        meetings.push({
+            day: dayShortMap[fullDay],
+            startTime: startTime,
+            endTime: endTime,
+            room: room
+        });
+    }
+    
+    // Check if course already exists
+    let existingCourseFind = currentCourses.find(c => c.code === code);
+    
+    if (existingCourseFind) {
+        // Add meetings to existing course
+        for (const meeting of meetings) {
+            if (!existingCourseFind.meetings.some(m => m.day === meeting.day && m.startTime === meeting.startTime)) {
+                existingCourseFind.meetings.push(meeting);
+            }
+        }
+        if (subject) existingCourseFind.subject = subject;
+        if (faculty) existingCourseFind.faculty = faculty;
+    } else {
+        // Create new course
+        currentCourses.push({
+            code: code,
+            subject: subject,
+            faculty: faculty,
+            meetings: meetings
         });
     }
     
     renderTimetableGrid();
-    showStatus('✅ Schedule updated successfully!', 'success');
-    closeModal();
+    closeAddModal();
+    showStatus('Class added successfully!', 'success');
+}
+
+function openAddModal() {
+    document.getElementById('addCode').value = '';
+    document.getElementById('addSubject').value = '';
+    document.getElementById('addFaculty').value = '';
+    document.getElementById('addDay').value = 'M';
+    document.getElementById('addStartTime').value = '7:00 AM';
+    document.getElementById('addEndTime').value = '8:30 AM';
+    document.getElementById('addRoom').value = '';
+    
+    // Disable save button initially
+    const saveBtn = document.getElementById('saveAddBtn');
+    if (saveBtn) saveBtn.disabled = true;
+    
+    // Hide warning
+    const warning = document.getElementById('addConflictWarning');
+    if (warning) warning.style.display = 'none';
+    
+    document.getElementById('addModal').style.display = 'block';
+}
+
+function closeAddModal() {
+    document.getElementById('addModal').style.display = 'none';
+}
+
+
+let pendingDeleteCourse = null;
+let pendingDeleteMeetingIndex = null;
+
+function deleteCurrentMeeting() {
+    if (!currentEditingCourse) return;
+    
+    pendingDeleteCourse = currentEditingCourse;
+    pendingDeleteMeetingIndex = currentEditingMeetingIndex;
+    
+    let message = '';
+    if (pendingDeleteMeetingIndex !== null && pendingDeleteCourse.meetings[pendingDeleteMeetingIndex]) {
+        const meeting = pendingDeleteCourse.meetings[pendingDeleteMeetingIndex];
+        message = `Are you sure you want to delete <strong>${escapeHtml(pendingDeleteCourse.code)}</strong><br>on <strong>${meeting.day}</strong> at <strong>${meeting.startTime}</strong>?`;
+    } else {
+        message = `Are you sure you want to delete <strong>${escapeHtml(pendingDeleteCourse.code)}</strong>?`;
+    }
+    
+    document.getElementById('deleteConfirmMessage').innerHTML = message;
+    document.getElementById('deleteConfirmModal').style.display = 'block';
+}
+
+
+function validateEditModal() {
+    const courseCode = document.getElementById('editCode').value.trim();
+    const saveBtn = document.getElementById('saveBtn');
+    
+    if (saveBtn) {
+        if (!courseCode) {
+            saveBtn.disabled = true;
+        } else {
+            saveBtn.disabled = false;
+        }
+    }
+}
+
+function validateAddModal() {
+    const courseCode = document.getElementById('addCode').value.trim();
+    const saveBtn = document.getElementById('saveAddBtn');
+    
+    if (saveBtn) {
+        if (!courseCode) {
+            saveBtn.disabled = true;
+        } else {
+            saveBtn.disabled = false;
+        }
+    }
+}
+
+
+function confirmDelete() {
+    if (!pendingDeleteCourse) {
+        closeDeleteModal();
+        return;
+    }
+    
+    if (pendingDeleteMeetingIndex !== null && pendingDeleteCourse.meetings.length > 1) {
+        // Remove just this meeting
+        pendingDeleteCourse.meetings.splice(pendingDeleteMeetingIndex, 1);
+    } else {
+        // Remove the entire course
+        const courseIndex = currentCourses.findIndex(c => c.code === pendingDeleteCourse.code);
+        if (courseIndex !== -1) {
+            currentCourses.splice(courseIndex, 1);
+        }
+    }
+    
+    renderTimetableGrid();
+    closeModal(); // Close edit modal
+    closeDeleteModal();
+    showStatus('Class deleted successfully!', 'success');
+    
+    // Clean up
+    pendingDeleteCourse = null;
+    pendingDeleteMeetingIndex = null;
+}
+
+function closeDeleteModal() {
+    document.getElementById('deleteConfirmModal').style.display = 'none';
+    pendingDeleteCourse = null;
+    pendingDeleteMeetingIndex = null;
 }
 
 function closeModal() {
@@ -640,22 +1021,68 @@ function closeModal() {
     currentEditingCourse = null;
 }
 
+
+
 function resetToOriginal() {
     if (originalCourses.length) {
         currentCourses = JSON.parse(JSON.stringify(originalCourses));
         renderTimetableGrid();
-        showStatus('✅ Reset to original schedule.', 'success');
+        showStatus('Reset to original schedule.', 'success');
     }
 }
 
 // ========== LOCKSREEN WALLPAPER GENERATOR ==========
+let lockscreenPadding = 10;
+
 async function generateLockscreen() {
     if (currentCourses.length === 0) {
         showStatus('Please upload a COR first.', 'error');
         return;
     }
     
+    // Open settings modal instead of generating immediately
+    openLockscreenModal();
+}
+
+function openLockscreenModal() {
+    // Reset to default values
+    document.getElementById('lockscreenSize').value = '1080,1920';
+    document.getElementById('lockscreenCustomContainer').style.display = 'none';
+    document.getElementById('paddingSlider').value = lockscreenPadding;
+    document.getElementById('paddingValue').textContent = lockscreenPadding;
+    document.getElementById('lockscreenModal').style.display = 'block';
+}
+
+function closeLockscreenModal() {
+    document.getElementById('lockscreenModal').style.display = 'none';
+}
+
+async function generateLockscreenImage() {
+    closeLockscreenModal();
     showLoading(true);
+    
+    // Get selected size
+    const sizeSelect = document.getElementById('lockscreenSize');
+    let targetWidth = 1080;
+    let targetHeight = 1920;
+    
+    if (sizeSelect.value === 'custom') {
+        targetWidth = parseInt(document.getElementById('lockscreenCustomWidth').value);
+        targetHeight = parseInt(document.getElementById('lockscreenCustomHeight').value);
+        if (!targetWidth || !targetHeight || targetWidth <= 0 || targetHeight <= 0) {
+            showStatus('Please enter valid custom dimensions.', 'error');
+            showLoading(false);
+            return;
+        }
+    } else {
+        const [w, h] = sizeSelect.value.split(',').map(Number);
+        targetWidth = w;
+        targetHeight = h;
+    }
+    
+    // Get padding
+    const padding = parseInt(document.getElementById('paddingSlider').value) / 100;
+    lockscreenPadding = parseInt(document.getElementById('paddingSlider').value);
     
     const dayMap = { 'M': 'Monday', 'T': 'Tuesday', 'W': 'Wednesday', 'Th': 'Thursday', 'F': 'Friday', 'S': 'Saturday' };
     const fullDayMap = { 'Monday': 'MON', 'Tuesday': 'TUE', 'Wednesday': 'WED', 'Thursday': 'THU', 'Friday': 'FRI', 'Saturday': 'SAT' };
@@ -719,7 +1146,7 @@ async function generateLockscreen() {
                 <div class="class-item">
                     <div class="class-time">${escapeHtml(timeRange)}</div>
                     <div class="class-name">${escapeHtml(cls.name.substring(0, 40))}</div>
-                    <div class="class-room">${escapeHtml(cls.room || '')}</div>
+                    <div class="class-room">${escapeHtml(cls.room || 'TBA')}</div>
                 </div>
             `;
         }
@@ -742,18 +1169,43 @@ async function generateLockscreen() {
         }
         
         try {
+            const rect = element.getBoundingClientRect();
+            
             const canvas = await html2canvas(element, {
-                scale: 2.5,
+                scale: 2,
                 backgroundColor: '#faf7f0',
-                logging: false
+                logging: false,
+                windowWidth: rect.width,
+                windowHeight: rect.height
             });
             
+            const finalCanvas = document.createElement('canvas');
+            finalCanvas.width = targetWidth;
+            finalCanvas.height = targetHeight;
+            const ctx = finalCanvas.getContext('2d');
+            
+            ctx.fillStyle = '#faf7f0';
+            ctx.fillRect(0, 0, targetWidth, targetHeight);
+            
+            // Apply padding
+            const scale = Math.min(
+                targetWidth / rect.width,
+                targetHeight / rect.height
+            ) * (1 - padding);
+            
+            const scaledWidth = rect.width * scale;
+            const scaledHeight = rect.height * scale;
+            const x = (targetWidth - scaledWidth) / 2;
+            const y = (targetHeight - scaledHeight) / 2;
+            
+            ctx.drawImage(canvas, x, y, scaledWidth, scaledHeight);
+            
             const link = document.createElement('a');
-            link.download = 'lockscreen_schedule.png';
-            link.href = canvas.toDataURL('image/png');
+            link.download = `lockscreen_${targetWidth}x${targetHeight}.png`;
+            link.href = finalCanvas.toDataURL('image/png');
             link.click();
             
-            showStatus('✅ Lockscreen wallpaper saved!', 'success');
+            showStatus(`Lockscreen wallpaper saved! (${targetWidth} x ${targetHeight})`, 'success');
         } catch (error) {
             console.error('Error:', error);
             showStatus('Error generating image', 'error');

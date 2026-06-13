@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>COR to Timetable | USTP</title>
+    <title>COR to Timetable & Lockscreen | USTP</title>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
@@ -11,13 +11,13 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>COR to Timetable Converter</h1>
-            <p>Upload your USTP Certificate of Registration → Editable timetable</p>
+            <h1>Class Schedule Maker</h1>
+            <p>Upload USTP COR → Editable timetable + Lockscreen wallpaper</p>
         </div>
 
         <div class="upload-card">
             <div class="upload-area" onclick="document.getElementById('fileInput').click()">
-                <div class="upload-icon">📄</div>
+                <div class="upload-icon"><img src="file_icon.png" width="50" height="60"></div>
                 <p>Click to upload your COR PDF</p>
                 <small>Your file stays on your device. No upload to any server.</small>
                 <input type="file" id="fileInput" accept=".pdf">
@@ -33,14 +33,15 @@
             <div class="timetable-header">
                 <h2>Your Class Schedule</h2>
                 <div class="btn-group">
-                    <button class="btn-reset" id="resetBtn">↺ Reset Edits</button>
-                    <button class="btn-lockscreen" id="lockscreenBtn">Save as Lockscreen Image</button>
+                    <button class="btn-reset" id="resetBtn">⭯ Reset</button>
+                    <button class="btn-add" id="addCourseBtn">+ Class</button>
+                    <button class="btn-lockscreen" id="lockscreenBtn">➜] Lockscreen Wallpaper</button>
                 </div>
             </div>
             <div class="timetable-grid" id="timetableGrid"></div>
             <p class="tip">
-                <strong>Tip:</strong> This generator can make mistakes. Please verify your schedule against your COR.
-You can click any class to edit, add new classes, or delete incorrect ones.
+                <strong>Note:</strong> This generator can make mistakes. Please verify your schedule against your COR.<br>
+                You can click any class to <strong>edit</strong>, use the <strong>+ Add Class</strong> button to add new classes, or <strong>delete</strong> incorrect ones by clicking the delete button.
             </p>
         </div>
 
@@ -51,12 +52,12 @@ You can click any class to edit, add new classes, or delete incorrect ones.
     <div id="editModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
-                <h3>Edit Course Schedule</h3>
+                <h3>Edit or Delete Course Schedule</h3>
                 <span class="modal-close">&times;</span>
             </div>
             <div class="modal-body">
                 <div class="form-group">
-                    <label>Course Code</label>
+                    <label>Course Code <span style="color: #ef4444;">*</span></label>
                     <input type="text" id="editCode" placeholder="e.g., IT221">
                 </div>
                 <div class="form-group">
@@ -73,10 +74,6 @@ You can click any class to edit, add new classes, or delete incorrect ones.
                             <option value="Th">Thursday (Th)</option>
                             <option value="F">Friday (F)</option>
                             <option value="S">Saturday (S)</option>
-                            <option value="TF">Tuesday & Thursday (TF)</option>
-                            <option value="MTh">Monday & Thursday (MTh)</option>
-                            <option value="MW">Monday & Wednesday (MW)</option>
-                            <option value="MWF">Monday, Wednesday, Friday (MWF)</option>
                         </select>
                     </div>
                     <div class="form-group">
@@ -158,13 +155,224 @@ You can click any class to edit, add new classes, or delete incorrect ones.
                 </div>
             </div>
             <div class="modal-footer">
+                <button type="button" class="modal-btn delete-btn" id="deleteBtn">Delete</button>
                 <button type="button" class="modal-btn cancel-btn" id="cancelBtn">Cancel</button>
                 <button type="button" class="modal-btn save-btn" id="saveBtn">Save Changes</button>
             </div>
         </div>
     </div>
 
+    <!-- Add Course Modal -->
+    <div id="addModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Add New Class</h3>
+                <span class="modal-close add-modal-close">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div id="addConflictWarning" style="display: none; background: #fef2f2; color: #991b1b; padding: 12px; border-radius: 12px; margin-bottom: 20px; font-size: 0.75rem; border: 1px solid #fecaca;">
+                    <strong>Schedule Conflict!</strong> This time overlaps with another class.
+                </div>
+                <div class="form-group">
+                    <label>Course Code <span style="color: #ef4444;">*</span></label>
+                    <input type="text" id="addCode" placeholder="e.g., IT221">
+                </div>
+                <div class="form-group">
+                    <label>Subject Title</label>
+                    <input type="text" id="addSubject" placeholder="e.g., Information Management">
+                </div>
+                <div class="form-group">
+                    <label>Faculty</label>
+                    <input type="text" id="addFaculty" placeholder="e.g., Mr. John Doe">
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Day</label>
+                        <select id="addDay">
+                            <option value="M">Monday (M)</option>
+                            <option value="T">Tuesday (T)</option>
+                            <option value="W">Wednesday (W)</option>
+                            <option value="Th">Thursday (Th)</option>
+                            <option value="F">Friday (F)</option>
+                            <option value="S">Saturday (S)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Start Time</label>
+                        <select id="addStartTime">
+                            <!-- Same options as edit modal -->
+                            <option value="7:00 AM">7:00 AM</option>
+                            <option value="7:30 AM">7:30 AM</option>
+                            <option value="8:00 AM">8:00 AM</option>
+                            <option value="8:30 AM">8:30 AM</option>
+                            <option value="9:00 AM">9:00 AM</option>
+                            <option value="9:30 AM">9:30 AM</option>
+                            <option value="10:00 AM">10:00 AM</option>
+                            <option value="10:30 AM">10:30 AM</option>
+                            <option value="11:00 AM">11:00 AM</option>
+                            <option value="11:30 AM">11:30 AM</option>
+                            <option value="12:00 PM">12:00 PM</option>
+                            <option value="12:30 PM">12:30 PM</option>
+                            <option value="1:00 PM">1:00 PM</option>
+                            <option value="1:30 PM">1:30 PM</option>
+                            <option value="2:00 PM">2:00 PM</option>
+                            <option value="2:30 PM">2:30 PM</option>
+                            <option value="3:00 PM">3:00 PM</option>
+                            <option value="3:30 PM">3:30 PM</option>
+                            <option value="4:00 PM">4:00 PM</option>
+                            <option value="4:30 PM">4:30 PM</option>
+                            <option value="5:00 PM">5:00 PM</option>
+                            <option value="5:30 PM">5:30 PM</option>
+                            <option value="6:00 PM">6:00 PM</option>
+                            <option value="6:30 PM">6:30 PM</option>
+                            <option value="7:00 PM">7:00 PM</option>
+                            <option value="7:30 PM">7:30 PM</option>
+                            <option value="8:00 PM">8:00 PM</option>
+                            <option value="8:30 PM">8:30 PM</option>
+                            <option value="9:00 PM">9:00 PM</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>End Time</label>
+                        <select id="addEndTime">
+                            <!-- Same options as edit modal -->
+                            <option value="8:00 AM">8:00 AM</option>
+                            <option value="8:30 AM">8:30 AM</option>
+                            <option value="9:00 AM">9:00 AM</option>
+                            <option value="9:30 AM">9:30 AM</option>
+                            <option value="10:00 AM">10:00 AM</option>
+                            <option value="10:30 AM">10:30 AM</option>
+                            <option value="11:00 AM">11:00 AM</option>
+                            <option value="11:30 AM">11:30 AM</option>
+                            <option value="12:00 PM">12:00 PM</option>
+                            <option value="12:30 PM">12:30 PM</option>
+                            <option value="1:00 PM">1:00 PM</option>
+                            <option value="1:30 PM">1:30 PM</option>
+                            <option value="2:00 PM">2:00 PM</option>
+                            <option value="2:30 PM">2:30 PM</option>
+                            <option value="3:00 PM">3:00 PM</option>
+                            <option value="3:30 PM">3:30 PM</option>
+                            <option value="4:00 PM">4:00 PM</option>
+                            <option value="4:30 PM">4:30 PM</option>
+                            <option value="5:00 PM">5:00 PM</option>
+                            <option value="5:30 PM">5:30 PM</option>
+                            <option value="6:00 PM">6:00 PM</option>
+                            <option value="6:30 PM">6:30 PM</option>
+                            <option value="7:00 PM">7:00 PM</option>
+                            <option value="7:30 PM">7:30 PM</option>
+                            <option value="8:00 PM">8:00 PM</option>
+                            <option value="8:30 PM">8:30 PM</option>
+                            <option value="9:00 PM">9:00 PM</option>
+                            <option value="9:30 PM">9:30 PM</option>
+                            <option value="10:00 PM">10:00 PM</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Room</label>
+                    <input type="text" id="addRoom" placeholder="e.g., CITC Lab 3, 51-201">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="modal-btn cancel-btn" id="cancelAddBtn">Cancel</button>
+                <button type="button" class="modal-btn save-btn" id="saveAddBtn">Add Class</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Confirmation Modal -->
+    <div id="deleteConfirmModal" class="modal">
+        <div class="modal-content" style="max-width: 400px;">
+            <div class="modal-header">
+                <h3>Confirm Delete</h3>
+                <span class="modal-close delete-confirm-close">&times;</span>
+            </div>
+            <div class="modal-body" id="deleteConfirmMessage">
+                Are you sure you want to delete this item?
+            </div>
+            <div class="modal-footer" style="justify-content: space-between;">
+                <button type="button" class="modal-btn cancel-btn" id="deleteCancelBtn">Cancel</button>
+                <button type="button" class="modal-btn delete-btn" id="deleteConfirmBtn">Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lockscreen Settings Modal -->
+    <div id="lockscreenModal" class="modal">
+        <div class="modal-content" style="max-width: 450px;">
+            <div class="modal-header">
+                <h3>Lockscreen Wallpaper Settings</h3>
+                <span class="modal-close lockscreen-modal-close">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Screen Size</label>
+                    <select id="lockscreenSize" style="width: 100%;">
+                        <option value="1080,2400">Galaxy A07/A56/A36/A17 (1080 x 2400)</option>
+                        <option value="720,1600">Galaxy A05/A06 (720 x 1600)</option>
+                        <option value="1440,3120">Galaxy S26/S25/S24 Ultra (1440 x 3120)</option>
+                        <option value="1080,2340">Galaxy S26/S25/S24 Standard & Plus (1080 x 2340)</option>
+                        <!-- Apple iPhone 16 / 15 / 14 Series -->
+                        <option value="1320,2868">iPhone 16 Pro Max (1320 x 2868)</option>
+                        <option value="1206,2622">iPhone 16 Pro (1206 x 2622)</option>
+                        <option value="1290,2796">iPhone 15/14 Pro Max (1290 x 2796)</option>
+                        <option value="1179,2556">iPhone 16/15/14 Pro (1179 x 2556)</option>
+                        <option value="1170,2532">iPhone 14/13/13 Pro (1170 x 2532)</option>
+                        <!-- Redmi & Xiaomi -->
+                        <option value="1220,2712">Redmi Note 14 Pro+/13 Pro 5G (1220 x 2712)</option>
+                        <option value="1080,2400">Redmi Note 13/12 Standard (1080 x 2400)</option>
+                        <option value="720,1650">Redmi 14C/13C Budget Tier (720 x 1650)</option>
+                        <!-- Realme -->
+                        <option value="1264,2780">Realme GT 6/6T (1264 x 2780)</option>
+                        <option value="1080,2412">Realme 13 Pro+/12 Pro+ (1080 x 2412)</option>
+                        <option value="720,1600">Realme C65/C63/C53 Note (720 x 1600)</option>
+
+                        <!-- Vivo & iQOO -->
+                        <option value="1260,2800">Vivo V40/V30 Pro 5G (1260 x 2800)</option>
+                        <option value="1080,2400">Vivo Y100/Y28/Y17s (1080 x 2400)</option>
+
+                        <!-- Infinix & Tecno -->
+                        <option value="1080,2460">Infinix GT 20 Pro/Note 40 Pro (1080 x 2460)</option>
+                        <option value="1080,2436">Tecno Pova 6 Pro/Camon 30 (1080 x 2436)</option>
+                        <option value="720,1612">Infinix Smart 8/Tecno Spark 20 (720 x 1612)</option>
+
+                        <!-- Oppo -->
+                        <option value="1240,2772">Oppo Reno 12 Pro/11 Pro (1240 x 2772)</option>
+                        <option value="1080,2412">Oppo A3 Pro/A78/A98 (1080 x 2412)</option>
+                        <option value="custom">Custom size...</option>
+                    </select>
+                </div>
+                <div id="lockscreenCustomContainer" style="display: none;">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Width</label>
+                            <input type="number" id="lockscreenCustomWidth" placeholder="1080" value="1080">
+                        </div>
+                        <div class="form-group">
+                            <label>Height</label>
+                            <input type="number" id="lockscreenCustomHeight" placeholder="1920" value="1920">
+                        </div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Padding <span id="paddingValue">10</span>%</label>
+                    <input type="range" id="paddingSlider" min="0" max="20" value="10" style="width: 100%;">
+                </div>
+                <p style="font-size: 0.7rem; color: #64748b; margin-top: 12px;">
+                    The image will be centered with your chosen padding. Adjust if content gets cut off on your phone.
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="modal-btn cancel-btn" id="cancelLockscreenBtn">Cancel</button>
+                <button type="button" class="modal-btn save-btn" id="generateLockscreenBtn">Generate & Save</button>
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
     <script src="script.js"></script>
+    <footer style="text-align: center; margin-top: 40px; padding: 20px; color: #94a3b8; font-size: 0.85rem; border-top: 1px solid #e2e8f0;">
+        code ni chzn
+    </footer>
 </body>
 </html>
