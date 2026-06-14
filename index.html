@@ -41,7 +41,7 @@
             <div class="timetable-grid" id="timetableGrid"></div>
             <p class="tip">
                 <strong>Note:</strong> This generator can make mistakes. Please verify your schedule against your COR.<br>
-                You can click any class to <strong>edit</strong>, use the <strong>+ Add Class</strong> button to add new classes, or <strong>delete</strong> incorrect ones by clicking the delete button.
+                You can click any class to <strong>edit</strong>, use the <strong>+ Class</strong> button to add new classes, or <strong>delete</strong> incorrect ones by clicking the schedule.
             </p>
         </div>
 
@@ -52,7 +52,7 @@
     <div id="editModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
-                <h3>Edit or Delete Course Schedule</h3>
+                <h3>Course Schedule</h3>
                 <span class="modal-close">&times;</span>
             </div>
             <div class="modal-body">
@@ -170,9 +170,6 @@
                 <span class="modal-close add-modal-close">&times;</span>
             </div>
             <div class="modal-body">
-                <div id="addConflictWarning" style="display: none; background: #fef2f2; color: #991b1b; padding: 12px; border-radius: 12px; margin-bottom: 20px; font-size: 0.75rem; border: 1px solid #fecaca;">
-                    <strong>Schedule Conflict!</strong> This time overlaps with another class.
-                </div>
                 <div class="form-group">
                     <label>Course Code <span style="color: #ef4444;">*</span></label>
                     <input type="text" id="addCode" placeholder="e.g., IT221">
@@ -308,7 +305,7 @@
                 <div class="form-group">
                     <label>Screen Size</label>
                     <select id="lockscreenSize" style="width: 100%;">
-                        <option value="1080,2400">Galaxy A07/A56/A36/A17 (1080 x 2400)</option>
+                        <option value="1080,2400" selected>Galaxy A07/A56/A36/A17 (1080 x 2400)</option>
                         <option value="720,1600">Galaxy A05/A06 (720 x 1600)</option>
                         <option value="1440,3120">Galaxy S26/S25/S24 Ultra (1440 x 3120)</option>
                         <option value="1080,2340">Galaxy S26/S25/S24 Standard & Plus (1080 x 2340)</option>

@@ -60,15 +60,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if (editCloseBtn) editCloseBtn.onclick = closeModal;
     if (cancelBtn) cancelBtn.onclick = closeModal;
     if (saveBtn) saveBtn.onclick = saveCourseEdits;
-    
-    // Add conflict checking to Add Modal
-    const addDay = document.getElementById('addDay');
-    const addStartTime = document.getElementById('addStartTime');
-    const addEndTime = document.getElementById('addEndTime');
-
-    if (addDay) addDay.addEventListener('change', checkAddConflict);
-    if (addStartTime) addStartTime.addEventListener('change', checkAddConflict);
-    if (addEndTime) addEndTime.addEventListener('change', checkAddConflict);
 
     // Delete confirmation modal handlers
     const deleteConfirmModal = document.getElementById('deleteConfirmModal');
@@ -229,7 +220,7 @@ async function parseCOR(file) {
     rows.forEach(row => row.sort((a, b) => a.transform[4] - b.transform[4]));
     rows.sort((a, b) => b[0].transform[5] - a[0].transform[5]);
     
-    // Parse rows - need to look ahead for additional schedules
+    // Parse rows
     let currentCourse = null;
     
     for (let rowIndex = 0; rowIndex < rows.length; rowIndex++) {
@@ -239,10 +230,10 @@ async function parseCOR(file) {
         
         const first = texts[0];
         
-        // Expanded course code detection
+        // Expanded course code detection 
         const isCourseCode = (
             /^[A-Za-z]{2,6}\d{2,4}$/i.test(first.replace(/\s/g, "")) ||
-            /^(Ethc|Rizal|PATH\s*FIT\s*\d+|PurCom|RPH|TCW|MMW|STS)$/i.test(first)
+            /^(PurCom|RPH|TCW|MMW|Ethc|Rizal|STS|UTS|ArtApp|GnS|PICPE|EnviSci|PATH\s*FIT\s*\d+|NSTP\d{3}|ES211a|FreeElec)$/i.test(first)
         );
         
         if (isCourseCode) {
@@ -264,49 +255,105 @@ async function parseCOR(file) {
             
             // Extract subject - stop at section codes
             let subjectParts = [];
-            let foundSection = false;
-
             for (let i = 1; i < texts.length; i++) {
                 const text = texts[i];
                 
-                // Stop if we hit a section code pattern
-                if (/^[A-Z]{3,10}_[A-Z]{2,4}_\d+[A-Z]?$/i.test(text)) {
-                    foundSection = true;
-                    break;
-                }
-                
-                // Stop if we hit schedule
+                if (/^[A-Z]{3,10}_[A-Z]{2,4}_\d+[A-Z]?$/i.test(text)) break;
                 if (/(AM|PM)/i.test(text)) break;
-                
-                // Stop if we hit faculty
                 if (text.match(/^(Mr\.|Ms\.|Mrs\.|Dr\.|MA\.|Ma\.|Prof\.)/i)) break;
-                
-                // Stop if we hit units
                 if (/^\d+$/.test(text) && text.length <= 2) break;
                 
-                // Add to subject
                 if (text.length > 1) {
                     subjectParts.push(text);
                 }
             }
-
             currentCourse.subject = subjectParts.join(" ").trim();
             
-            // Extract faculty from current row
+            // ========== IMPROVED FACULTY EXTRACTION ==========
+            let facultyFound = false;
+
+            // First, find where the schedule/room ends (look for text containing AM/PM)
+            let scheduleEndIndex = -1;
             for (let i = 0; i < texts.length; i++) {
-                if (texts[i].match(/^(Mr\.|Ms\.|Mrs\.|Dr\.|MA\.|Ma\.|Prof\.)/i)) {
-                    currentCourse.faculty = texts.slice(i).join(" ").trim();
+                if (/(AM|PM)/i.test(texts[i])) {
+                    scheduleEndIndex = i;
                     break;
                 }
             }
+
+            // Only look for faculty AFTER the schedule/room
+            if (scheduleEndIndex !== -1) {
+                // Check current row for faculty (starting from scheduleEndIndex + 1)
+                for (let i = scheduleEndIndex + 1; i < texts.length; i++) {
+                    const text = texts[i];
+                    
+                    // Skip if contains numbers
+                    if (/\d/.test(text)) continue;
+                    
+                    // Check for faculty titles
+                    if (text.match(/^(Mr\.|Ms\.|Mrs\.|Dr\.|MA\.|Ma\.|Prof\.|Engr\.)/i)) {
+                        currentCourse.faculty = texts.slice(i).join(" ").trim();
+                        facultyFound = true;
+                        break;
+                    }
+                    
+                    // Check for ALL CAPS names (must be 2-4 words, no numbers)
+                    if (text.match(/^[A-Z][A-Z\s.-]+$/) && text.length > 7 && text.length < 40) {
+                        const words = text.split(/\s+/);
+                        if (words.length >= 2 && words.length <= 4) {
+                            currentCourse.faculty = text;
+                            facultyFound = true;
+                            break;
+                        }
+                    }
+                    
+                    // Check for Proper Case names (e.g., Christy Jugan)
+                    if (text.match(/^[A-Z][a-z]+\s+[A-Z][a-z]+/) && text.length < 40) {
+                        currentCourse.faculty = text;
+                        facultyFound = true;
+                        break;
+                    }
+                }
+            }
+
+            // If not found in current row, check next row
+            if (!facultyFound && rows[rowIndex + 1]) {
+                const nextTexts = rows[rowIndex + 1].map(r => r.str.trim()).filter(Boolean);
+                
+                for (let i = 0; i < nextTexts.length; i++) {
+                    const text = nextTexts[i];
+                    
+                    if (/\d/.test(text)) continue;
+                    
+                    if (text.match(/^(Mr\.|Ms\.|Mrs\.|Dr\.|MA\.|Ma\.|Prof\.|Engr\.)/i)) {
+                        currentCourse.faculty = text;
+                        facultyFound = true;
+                        break;
+                    }
+                    
+                    if (text.match(/^[A-Z][A-Z\s.]+$/) && text.length > 7 && text.length < 40) {
+                        const words = text.split(/\s+/);
+                        if (words.length >= 2 && words.length <= 4) {
+                            currentCourse.faculty = text;
+                            facultyFound = true;
+                            break;
+                        }
+                    }
+                    
+                    if (text.match(/^[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*(?:-?[A-Z][a-z]+)?/) && text.length < 40) {
+                        currentCourse.faculty = text;
+                        facultyFound = true;
+                        break;
+                    }
+                }
+            }
             
-            // Extract ALL schedule patterns from current row
+            // Extract schedule patterns
             const rowText = texts.join(" ");
             extractSchedulesFromText(rowText, currentCourse);
         }
         
-        // If we have a current course, also check THIS row for additional schedules
-        // (for schedules that appear on separate lines after the course code)
+        // Check additional schedules in following rows for current course
         if (currentCourse) {
             const rowText = texts.join(" ");
             extractSchedulesFromText(rowText, currentCourse);
@@ -318,10 +365,11 @@ async function parseCOR(file) {
         courses.push(currentCourse);
     }
     
-    console.log("Parsed courses with meetings:", courses.map(c => ({
+    console.log("Parsed courses:", courses.map(c => ({
         code: c.code,
         subject: c.subject,
-        meetings: c.meetings
+        faculty: c.faculty,
+        meetings: c.meetings.length
     })));
     
     return courses;
@@ -432,7 +480,9 @@ function extractSchedulesFromText(text, course) {
 function renderTimetableGrid() {
     const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
     const dayMap = { 'M': 'Monday', 'T': 'Tuesday', 'W': 'Wednesday', 'Th': 'Thursday', 'F': 'Friday', 'S': 'Saturday' };
+    const dayIndex = { 'Monday': 0, 'Tuesday': 1, 'Wednesday': 2, 'Thursday': 3, 'Friday': 4, 'Saturday': 5 };
     
+    // Build time slots (5 AM to 11 PM)
     const times = [];
     for (let hour = 5; hour <= 23; hour++) {
         const period = hour >= 12 ? 'PM' : 'AM';
@@ -441,15 +491,8 @@ function renderTimetableGrid() {
         times.push(`${displayHour}:00 ${period}`);
     }
     
-    const grid = {};
-    for (const day of days) {
-        grid[day] = {};
-        for (let i = 0; i < times.length; i++) {
-            grid[day][i] = null;
-        }
-    }
-    
-    // Iterate over course.meetings
+    // Build events array
+    const events = [];
     for (const course of currentCourses) {
         if (!course.meetings || course.meetings.length === 0) continue;
         
@@ -459,33 +502,56 @@ function renderTimetableGrid() {
             
             const startFloat = timeToFloat(meeting.startTime);
             const endFloat = timeToFloat(meeting.endTime);
-            const startHour = Math.floor(startFloat);
-            const startSlotIndex = startHour - 5;
-            const durationHours = endFloat - startFloat;
-            const endHour = Math.ceil(endFloat);
-            const rowspan = Math.max(1, endHour - startHour);
             
-            if (startSlotIndex < 0 || startSlotIndex >= times.length) continue;
-            
-            const startMinutesPastHour = (startFloat - startHour) * 60;
-            const topOffset = (startMinutesPastHour / 60) * 70;
-            const heightPx = Math.max(30, durationHours * 70);
-            
-            if (!grid[fullDay][startSlotIndex]) {
-                grid[fullDay][startSlotIndex] = {
-                    course: course,
-                    meeting: meeting,
-                    duration: rowspan,
-                    topOffset: topOffset,
-                    heightPx: heightPx,
-                    startIdx: startSlotIndex,
-                    endIdx: startSlotIndex + rowspan
-                };
-            }
+            events.push({
+                course: course,
+                meeting: meeting,
+                day: fullDay,
+                start: startFloat,
+                end: endFloat,
+                startTime: meeting.startTime,
+                endTime: meeting.endTime
+            });
         }
     }
     
-    let html = '<div class="timetable-wrapper">';
+    // Group events by day and calculate overlaps
+    const eventsByDay = {};
+    for (const day of days) {
+        eventsByDay[day] = events.filter(e => e.day === day);
+    }
+    
+    // Calculate column assignments for overlaps
+    for (const day of days) {
+        const dayEvents = eventsByDay[day];
+        if (dayEvents.length === 0) continue;
+        
+        // Sort by start time
+        dayEvents.sort((a, b) => a.start - b.start);
+        
+        // For each event, find max overlapping at its specific time range
+        for (const event of dayEvents) {
+            // Find all events that overlap with THIS event's time range
+            const overlappingAtThisTime = dayEvents.filter(e => 
+                e !== event && 
+                e.start < event.end && 
+                e.end > event.start
+            );
+            
+            // Assign column
+            event.column = 0;
+            let usedColumns = overlappingAtThisTime.map(e => e.column).filter(c => c !== undefined);
+            let col = 0;
+            while (usedColumns.includes(col)) col++;
+            event.column = col;
+            
+            // maxColumns for THIS event = overlapping count + 1
+            event.maxColumns = overlappingAtThisTime.length + 1;
+        }
+    }
+    
+    // Build the empty table grid
+    let html = '<div class="timetable-wrapper" style="position: relative;">';
     html += '<table class="timetable">';
     html += '<thead><tr><th class="time-col">Time</th>';
     for (const day of days) {
@@ -494,51 +560,51 @@ function renderTimetableGrid() {
     html += '</thead><tbody>';
     
     for (let slotIdx = 0; slotIdx < times.length; slotIdx++) {
-        const timeLabel = times[slotIdx];  // Just use the pre-formatted time
-        
-        html += `<tr class="time-row" data-slot="${slotIdx}" style="height: 70px;">`;
+        const timeLabel = times[slotIdx];
+        html += `<tr class="time-row" style="height: 70px;">`;
         html += `<td class="time-slot"><strong>${timeLabel}</strong></td>`;
-        
-        for (const day of days) {
-            const cell = grid[day][slotIdx];
-            
-            let isSpanned = false;
-            for (let prevSlot = 0; prevSlot < slotIdx; prevSlot++) {
-                const prevCell = grid[day][prevSlot];
-                if (prevCell && prevCell.duration > 0) {
-                    if (slotIdx > prevCell.startIdx && slotIdx < prevCell.startIdx + prevCell.duration) {
-                        isSpanned = true;
-                        break;
-                    }
-                }
-            }
-            
-            if (isSpanned) {
-                html += `<td class="spanned-cell" style="display: none;"></td>`;
-            } else if (cell && cell.course) {
-                const rowspan = cell.duration;
-                html += `<td class="course-cell-wrapper" rowspan="${rowspan}" style="position: relative; vertical-align: top;">`;
-                html += `
-                    <div class="course-cell" onclick="editCourse('${escapeHtml(cell.course.code)}', '${escapeHtml(cell.meeting.day)}', '${escapeHtml(cell.meeting.startTime)}')" 
-                        style="position: absolute; top: calc(${cell.topOffset}px + 2px); left: 2px; right: 2px; height: calc(${cell.heightPx}px - 5px); min-height: 30px;">
-                        <div class="course-code">${escapeHtml(cell.course.code)}</div>
-                        <div class="course-subject">${escapeHtml((cell.course.subject || '').substring(0, 35))}</div>
-                        <div class="course-time">${escapeHtml(cell.meeting.startTime)} - ${escapeHtml(cell.meeting.endTime)}</div>
-                        <div class="course-room">${escapeHtml(cell.meeting.room || 'TBA')}</div>
-                        ${cell.course.faculty ? `<div class="course-faculty">${escapeHtml(cell.course.faculty.substring(0, 30))}</div>` : ''}
-                    </div>
-                `;
-                html += `</td>`;
-            } else {
-                html += `<td class="empty-cell" style="height: 70px;">`;
-                html += `</td>`;
-            }
+        for (let i = 0; i < days.length; i++) {
+            html += `<td class="empty-cell" style="height: 70px;"></td>`;
         }
         html += `</tr>`;
     }
     
     html += `</tbody>`;
-    html += `<td>`;
+    html += `</table>`;
+    
+    // Add overlay layer with events
+    html += `<div class="events-layer" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0;">`;
+    
+    
+    const headerHeight = 47; // Approximate header height
+    
+    for (const event of events) {
+        const colIndex = dayIndex[event.day];
+        
+        // Original working calculations
+        const dayWidthPercent = 100 / days.length;  // 16.667%
+        const eventWidthPercent = (dayWidthPercent / event.maxColumns);
+
+        const adjustmentFactor = 0.93;  // Try 0.95, 0.93, 0.90
+        const adjustedDayWidth = dayWidthPercent * adjustmentFactor;
+        const leftPercent = (colIndex * adjustedDayWidth) + (event.column * (adjustedDayWidth / event.maxColumns));
+        
+        const topPos = (event.start - 5) * 70 + headerHeight;
+        const heightPos = (event.end - event.start) * 70 - 4;
+        
+        html += `
+            <div class="course-cell" onclick="editCourse('${escapeHtml(event.course.code)}', '${escapeHtml(event.meeting.day)}', '${escapeHtml(event.meeting.startTime)}')" 
+                style="position: absolute; top: ${topPos}px; left: calc(5.5vw + ${leftPercent}%); width: calc(${eventWidthPercent}% - 20px); height: ${heightPos}px; background: #c8e0ff; border-radius: 6px; padding: 15px 10px 5px; cursor: pointer; overflow: hidden; box-sizing: border-box;">
+                <div class="course-code" style="font-weight: 700; color: #1e40af; font-size: 0.7rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(event.course.code)}</div>
+                <div class="course-subject" style="font-size: 0.6rem; color: #334155; white-space: normal; word-break: break-word;">${escapeHtml((event.course.subject || '').substring(0, 20))}</div>
+                <div class="course-time" style="font-size: 0.55rem; color: #64748b;">${escapeHtml(event.startTime)} - ${escapeHtml(event.endTime)}</div>
+                <div class="course-room" style="font-size: 0.5rem; color: #f59e0b;">${escapeHtml((event.meeting.room || 'TBA').substring(0, 10))}</div>
+                ${event.course.faculty ? `<div class="course-faculty" style="font-size: 0.45rem; color: #6b8a9e; font-style: italic;">${escapeHtml(event.course.faculty.substring(0, 10))}</div>` : ''}
+            </div>
+        `;
+    }
+    
+    html += `</div>`;
     html += `</div>`;
     
     document.getElementById('timetableGrid').innerHTML = html;
@@ -745,88 +811,6 @@ function floatToTime(floatVal) {
     return `${displayHour}:${minuteStr} ${period}`;
 }
 
-function getConflictingCourse(day, startTime, endTime, excludeCourseCode = null) {
-    const dayMap = { 'M': 'Monday', 'T': 'Tuesday', 'W': 'Wednesday', 'Th': 'Thursday', 'F': 'Friday', 'S': 'Saturday' };
-    const fullDay = dayMap[day];
-    
-    for (const course of currentCourses) {
-        if (excludeCourseCode && course.code === excludeCourseCode) continue;
-        
-        for (const meeting of course.meetings) {
-            if (meeting.day !== day) continue;
-            
-            const newStart = timeToFloat(startTime);
-            const newEnd = timeToFloat(endTime);
-            const existingStart = timeToFloat(meeting.startTime);
-            const existingEnd = timeToFloat(meeting.endTime);
-            
-            // Check if time ranges overlap
-            if (newStart < existingEnd && newEnd > existingStart) {
-                return course;
-            }
-        }
-    }
-    return null;
-}
-
-
-function getAvailableTimeSlots(selectedDay, currentStartTime = null, currentEndTime = null, excludeCourseCode = null) {
-    const allTimeSlots = [
-        '7:00 AM', '7:30 AM', '8:00 AM', '8:30 AM', '9:00 AM', '9:30 AM',
-        '10:00 AM', '10:30 AM', '11:00 AM', '11:30 AM', '12:00 PM', '12:30 PM',
-        '1:00 PM', '1:30 PM', '2:00 PM', '2:30 PM', '3:00 PM', '3:30 PM',
-        '4:00 PM', '4:30 PM', '5:00 PM', '5:30 PM', '6:00 PM', '6:30 PM',
-        '7:00 PM', '7:30 PM', '8:00 PM', '8:30 PM', '9:00 PM', '9:30 PM', '10:00 PM'
-    ];
-    
-    const availableSlots = [];
-    
-    for (const startTime of allTimeSlots) {
-        // Calculate default end time (1 hour later)
-        const startFloat = timeToFloat(startTime);
-        let endFloat = startFloat + 1;
-        let endTime = floatToTime(endFloat);
-        
-        // Check if this slot conflicts
-        const conflict = getConflictingCourse(selectedDay, startTime, endTime, excludeCourseCode);
-        
-        availableSlots.push({
-            startTime: startTime,
-            endTime: endTime,
-            available: !conflict,
-            conflictCourse: conflict ? conflict.code : null
-        });
-    }
-    
-    return availableSlots;
-}
-
-function checkAddConflict() {
-    const day = document.getElementById('addDay').value;
-    const startTime = document.getElementById('addStartTime').value;
-    const endTime = document.getElementById('addEndTime').value;
-    const warning = document.getElementById('addConflictWarning');
-    const saveBtn = document.getElementById('saveAddBtn');
-    
-    const conflict = getConflictingCourse(day, startTime, endTime);
-    
-    if (conflict) {
-        warning.style.display = 'block';
-        warning.innerHTML = `<strong>Schedule Conflict!</strong> This time overlaps with <strong>${conflict.code}</strong> (${conflict.subject || 'Unknown'}). Please choose a different time.`;
-        if (saveBtn) {
-            saveBtn.disabled = true;
-            saveBtn.style.opacity = '0.5';
-            saveBtn.style.cursor = 'not-allowed';
-        }
-    } else {
-        warning.style.display = 'none';
-        if (saveBtn) {
-            saveBtn.disabled = false;
-            saveBtn.style.opacity = '1';
-            saveBtn.style.cursor = 'pointer';
-        }
-    }
-}
 
 
 function addCourse() {
@@ -859,13 +843,6 @@ function addCourse() {
         if (!confirm(`"${code}" already exists.\n\nDo you want to add a new meeting time to this existing course?`)) {
             return;
         }
-    }
-    
-    // Final conflict check before saving
-    const conflict = getConflictingCourse(day, startTime, endTime);
-    if (conflict) {
-        showStatus(`Cannot add: Time conflicts with ${conflict.code}`, 'error');
-        return;
     }
     
     // Rest of your addCourse code continues here...
@@ -1045,11 +1022,20 @@ async function generateLockscreen() {
 }
 
 function openLockscreenModal() {
-    // Reset to default values
-    document.getElementById('lockscreenSize').value = '1080,1920';
-    document.getElementById('lockscreenCustomContainer').style.display = 'none';
-    document.getElementById('paddingSlider').value = lockscreenPadding;
-    document.getElementById('paddingValue').textContent = lockscreenPadding;
+    // Hide custom container by default
+    const customContainer = document.getElementById('lockscreenCustomContainer');
+    if (customContainer) {
+        customContainer.style.display = 'none';
+    }
+    
+    // Set default padding
+    const paddingSlider = document.getElementById('paddingSlider');
+    const paddingValue = document.getElementById('paddingValue');
+    if (paddingSlider) {
+        paddingSlider.value = lockscreenPadding || 10;
+        paddingValue.textContent = lockscreenPadding || 10;
+    }
+    
     document.getElementById('lockscreenModal').style.display = 'block';
 }
 
@@ -1066,19 +1052,22 @@ async function generateLockscreenImage() {
     let targetWidth = 1080;
     let targetHeight = 1920;
     
-    if (sizeSelect.value === 'custom') {
-        targetWidth = parseInt(document.getElementById('lockscreenCustomWidth').value);
-        targetHeight = parseInt(document.getElementById('lockscreenCustomHeight').value);
-        if (!targetWidth || !targetHeight || targetWidth <= 0 || targetHeight <= 0) {
-            showStatus('Please enter valid custom dimensions.', 'error');
-            showLoading(false);
-            return;
-        }
-    } else {
+    if (sizeSelect && sizeSelect.value !== 'custom') {
         const [w, h] = sizeSelect.value.split(',').map(Number);
-        targetWidth = w;
-        targetHeight = h;
+        targetWidth = w || 1080;
+        targetHeight = h || 1920;
+    } else if (sizeSelect && sizeSelect.value === 'custom') {
+        const customWidth = parseInt(document.getElementById('lockscreenCustomWidth')?.value);
+        const customHeight = parseInt(document.getElementById('lockscreenCustomHeight')?.value);
+        
+        // Use defaults if custom values are invalid
+        targetWidth = (customWidth && customWidth > 0) ? customWidth : 1080;
+        targetHeight = (customHeight && customHeight > 0) ? customHeight : 1920;
     }
+    
+    // Ensure dimensions are valid
+    if (!targetWidth || targetWidth <= 0) targetWidth = 1080;
+    if (!targetHeight || targetHeight <= 0) targetHeight = 1920;
     
     // Get padding
     const padding = parseInt(document.getElementById('paddingSlider').value) / 100;
