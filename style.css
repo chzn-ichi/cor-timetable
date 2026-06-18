@@ -246,10 +246,12 @@ button {
 .timetable th,
 .timetable td {
     border: 1px solid #e2e8f0;
-    padding: 0;
-    vertical-align: top;
+    padding: 2px;
+    vertical-align: middle;
     position: relative;
     height: 70px;
+    min-height: 70px;
+    max-height: 70px;
 }
 
 /* Empty cell styling */
@@ -262,87 +264,6 @@ button {
     height: 70px;
 }
 
-/* ========== OVERLAY EVENTS LAYER ========== */
-.events-layer {
-    position: absolute;
-    top: 0;
-    left: 0;
-    pointer-events: none;
-    overflow: visible;
-    z-index: 5;
-}
-
-.events-layer .course-cell {
-    pointer-events: auto;
-    position: absolute;
-    background: #c8e0ff;
-    border-radius: 6px;
-    cursor: pointer;
-    overflow: hidden;
-    transition: all 0.15s ease;
-    box-sizing: border-box;
-    border: 1px solid rgba(30, 64, 175, 0.12);
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-start;
-    padding: 3px 5px;
-    min-height: 20px;
-    min-width: 30px;
-}
-
-.events-layer .course-cell:hover {
-    background: #b0caec;
-    transform: scale(1.02);
-    box-shadow: 0 2px 8px rgba(0,0,0,0.12);
-    z-index: 10;
-}
-
-/* Make text sizes responsive to cell size */
-.events-layer .course-code {
-    font-weight: 700;
-    color: #1e40af;
-    font-size: clamp(0.4rem, 0.7vw, 0.7rem);
-    line-height: 1.2;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.events-layer .course-subject {
-    font-size: clamp(0.35rem, 0.6vw, 0.6rem);
-    color: #334155;
-    line-height: 1.2;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.events-layer .course-time {
-    font-size: clamp(0.3rem, 0.5vw, 0.55rem);
-    color: #64748b;
-    line-height: 1.2;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.events-layer .course-room {
-    font-size: clamp(0.25rem, 0.4vw, 0.5rem);
-    color: #f59e0b;
-    line-height: 1.2;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.events-layer .course-faculty {
-    font-size: clamp(0.2rem, 0.35vw, 0.45rem);
-    color: #6b8a9e;
-    font-style: italic;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
 
 /* Course blocks inside table cells */
 .course-block {
@@ -353,7 +274,6 @@ button {
     min-height: 50px;
     display: flex;
     flex-direction: column;
-    justify-content: center;
     border: 1px solid rgba(30, 64, 175, 0.15);
     cursor: pointer;
     overflow: hidden;
@@ -393,14 +313,6 @@ button {
     color: #f59e0b;
 }
 
-/* Fix table cell heights */
-.timetable td {
-    height: 70px;
-    min-height: 70px;
-    max-height: 70px;
-    padding: 2px;
-    vertical-align: middle;
-}
 
 @media (max-width: 768px) {
     .timetable td {
@@ -537,95 +449,7 @@ input[type="range"]::-moz-range-thumb {
     cursor: pointer;
 }
 
-/* Lockscreen Wallpaper Styles */
-.lockscreen-wallpaper {
-    background: #faf7f0;
-    min-height: 100vh;
-    padding: 40px 28px;
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-}
 
-.lockscreen-title {
-    text-align: center;
-    margin-bottom: 48px;
-}
-
-.lockscreen-title h1 {
-    font-family: 'Playfair Display', 'Georgia', serif;
-    font-size: 5rem;
-    font-weight: 600;
-    color: #2c3e4e;
-    letter-spacing: -0.5px;
-    margin-bottom: 0;
-}
-
-.lockscreen-schedule {
-    display: flex;
-    flex-direction: column;
-    gap: 48px;
-}
-
-.day-card {
-    background: #e8f0fe;
-    border-radius: 28px;
-    padding: 44px 28px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
-}
-
-.day-card .day-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 20px;
-    padding-bottom: 12px;
-    border-bottom: 2px solid rgba(44, 62, 78, 0.1);
-}
-
-.day-card .day-name {
-    font-size: 2.1rem;
-    font-weight: 700;
-    color: #2c3e4e;
-    letter-spacing: 0.5px;
-}
-
-.class-list {
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
-}
-
-.class-item {
-    display: flex;
-    align-items: baseline;
-    gap: 20px;
-    padding: 10px 0;
-    flex-wrap: wrap;
-}
-
-.class-time {
-    min-width: 180px;
-    font-size: 1.5rem;
-    font-weight: 500;
-    color: #6b8a9e;
-    font-family: 'SF Mono', 'Menlo', monospace;
-    letter-spacing: -0.3px;
-}
-
-.class-name {
-    flex: 2;
-    font-size: 1.5rem;
-    font-weight: 600;
-    color: #1a2a3a;
-    letter-spacing: -0.3px;
-}
-
-.class-room {
-    font-size: 1.4rem;
-    font-weight: 500;
-    color: #5a7a8e;
-    min-width: 150px;
-    text-align: right;
-}
 
 /* Modal Styles */
 .modal {
@@ -884,57 +708,6 @@ input[type="range"]::-moz-range-thumb {
     .timetable td.empty-cell {
         height: 60px;
     }
-    
-    .events-layer .course-cell {
-        padding: 3px 4px;
-        min-height: 24px;
-    }
-    
-    .events-layer .course-code {
-        font-size: 0.55rem;
-    }
-    
-    .events-layer .course-subject {
-        font-size: 0.45rem;
-    }
-    
-    .events-layer .course-time {
-        font-size: 0.4rem;
-    }
-    
-    .events-layer .course-room {
-        font-size: 0.35rem;
-    }
-    
-    .events-layer .course-faculty {
-        font-size: 0.3rem;
-    }
-
-    .lockscreen-wallpaper {
-        padding: 30px 20px;
-    }
-    
-    .lockscreen-title h1 {
-        font-size: 3.5rem;
-    }
-    
-    .day-card .day-name {
-        font-size: 1.6rem;
-    }
-    
-    .class-time {
-        min-width: 130px;
-        font-size: 1.1rem;
-    }
-    
-    .class-name {
-        font-size: 1.3rem;
-    }
-    
-    .class-room {
-        font-size: 1rem;
-        min-width: 100px;
-    }
 }
 
 @media (max-width: 480px) {
@@ -968,31 +741,6 @@ input[type="range"]::-moz-range-thumb {
         height: 50px;
     }
     
-    .events-layer .course-cell {
-        padding: 2px 3px;
-        min-height: 20px;
-        border-radius: 4px;
-    }
-    
-    .events-layer .course-code {
-        font-size: 0.45rem;
-    }
-    
-    .events-layer .course-subject {
-        font-size: 0.38rem;
-    }
-    
-    .events-layer .course-time {
-        font-size: 0.35rem;
-    }
-    
-    .events-layer .course-room {
-        font-size: 0.3rem;
-    }
-    
-    .events-layer .course-faculty {
-        font-size: 0.25rem;
-    }
 }
 
 @media (max-width: 640px) {

@@ -481,7 +481,6 @@ function renderTimetableGrid() {
     const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
     const dayMap = { 'M': 'Monday', 'T': 'Tuesday', 'W': 'Wednesday', 'Th': 'Thursday', 'F': 'Friday', 'S': 'Saturday' };
     const dayIndex = { 'Monday': 0, 'Tuesday': 1, 'Wednesday': 2, 'Thursday': 3, 'Friday': 4, 'Saturday': 5 };
-    const dayShortMap = { 'Monday': 'M', 'Tuesday': 'T', 'Wednesday': 'W', 'Thursday': 'Th', 'Friday': 'F', 'Saturday': 'S' };
     
     // Build time slots (5 AM to 11 PM)
     const times = [];
@@ -492,37 +491,96 @@ function renderTimetableGrid() {
         times.push(`${displayHour}:00 ${period}`);
     }
     
-    // Build schedule lookup: day + hour -> course info
-    const scheduleMap = {};
+    // Build events per day
+    const dayEvents = {};
+    for (const day of days) {
+        dayEvents[day] = [];
+    }
     
     for (const course of currentCourses) {
         if (!course.meetings || course.meetings.length === 0) continue;
-        
         for (const meeting of course.meetings) {
             const fullDay = dayMap[meeting.day];
             if (!fullDay) continue;
-            
-            const startHour = timeToFloat(meeting.startTime);
-            const endHour = timeToFloat(meeting.endTime);
-            
-            // Store in map by day and hour
-            const key = fullDay + '|' + startHour;
-            if (!scheduleMap[key]) {
-                scheduleMap[key] = [];
-            }
-            scheduleMap[key].push({
+            dayEvents[fullDay].push({
                 course: course,
                 meeting: meeting,
-                start: startHour,
-                end: endHour,
+                start: timeToFloat(meeting.startTime),
+                end: timeToFloat(meeting.endTime),
                 startTime: meeting.startTime,
-                endTime: meeting.endTime
+                endTime: meeting.endTime,
+                day: fullDay
             });
         }
     }
     
-    // Build the table
-    let html = '<div class="timetable-wrapper">';
+    // Calculate overlaps with proper column assignment
+    for (const day in dayEvents) {
+        const events = dayEvents[day];
+        events.sort((a, b) => a.start - b.start);
+        
+        // Build timeline of all start/end events
+        const timeline = [];
+        for (const event of events) {
+            timeline.push({ time: event.start, type: 'start', event: event });
+            timeline.push({ time: event.end, type: 'end', event: event });
+        }
+        timeline.sort((a, b) => a.time - b.time || (a.type === 'end' ? -1 : 1));
+        
+        // Track active events and assign columns
+        let activeEvents = [];
+        
+        for (const item of timeline) {
+            if (item.type === 'start') {
+                const event = item.event;
+                
+                // Find occupied columns at this moment
+                const occupied = new Set();
+                for (const active of activeEvents) {
+                    // Check if they overlap
+                    if (active.start < event.end && active.end > event.start) {
+                        occupied.add(active.column);
+                    }
+                }
+                
+                // Find first available column
+                let col = 0;
+                while (occupied.has(col)) col++;
+                event.column = col;
+                
+                activeEvents.push(event);
+                activeEvents.sort((a, b) => a.column - b.column);
+            } else {
+                const idx = activeEvents.indexOf(item.event);
+                if (idx !== -1) activeEvents.splice(idx, 1);
+            }
+        }
+        
+        // SECOND PASS: Calculate max columns for each event
+        // An event's maxColumns = max number of overlapping events at ANY point during its duration
+        for (const event of events) {
+            let maxOverlap = 1;
+            for (const other of events) {
+                if (other === event) continue;
+                // Check if they overlap at any point
+                if (other.start < event.end && other.end > event.start) {
+                    // Count how many events are active at the overlap
+                    // Check at the start of the overlap
+                    const overlapStart = Math.max(event.start, other.start);
+                    const activeAtOverlap = events.filter(e => 
+                        e.start <= overlapStart && e.end > overlapStart
+                    );
+                    if (activeAtOverlap.length > maxOverlap) {
+                        maxOverlap = activeAtOverlap.length;
+                    }
+                }
+            }
+            event.maxColumns = maxOverlap;
+        }
+    }
+    
+    // Build the table (grid only, no course blocks inside)
+    let html = '<div class="timetable-wrapper" id="timetableWrapper">';
     html += '<table class="timetable" id="timetableTable">';
     html += '<thead><tr><th class="time-col">Time</th>';
     for (const day of days) {
@@ -535,63 +593,162 @@ function renderTimetableGrid() {
         const hour = 5 + slotIdx;
         html += `<tr class="time-row" data-hour="${hour}">`;
         html += `<td class="time-slot"><strong>${timeLabel}</strong></td>`;
-        
         for (let dayIdx = 0; dayIdx < days.length; dayIdx++) {
-            const day = days[dayIdx];
-            const key = day + '|' + hour;
-            
-            // Check if there's a course at this hour
-            const coursesAtThisHour = scheduleMap[key] || [];
-            
-            if (coursesAtThisHour.length > 0) {
-                // Get the first course (handle overlaps later)
-                const entry = coursesAtThisHour[0];
-                const startMinute = (entry.start - Math.floor(entry.start)) * 60;
-                const endMinute = (entry.end - Math.floor(entry.end)) * 60;
-                const startDisplay = startMinute === 0 ? '' : `:${String(startMinute).padStart(2, '0')}`;
-                const endDisplay = endMinute === 0 ? '' : `:${String(endMinute).padStart(2, '0')}`;
-                
-                // Check if this course spans multiple hours
-                const span = Math.ceil(entry.end) - Math.floor(entry.start);
-                
-                html += `<td class="course-cell-td" data-day="${dayIdx}" data-hour="${hour}" style="position: relative; padding: 2px;">`;
-                html += `<div class="course-block" 
-                              style="background: #c8e0ff; 
-                                     border-radius: 6px; 
-                                     padding: 3px 5px; 
-                                     height: 100%; 
-                                     min-height: 50px;
-                                     display: flex; 
-                                     flex-direction: column; 
-                                     justify-content: center;
-                                     border: 1px solid rgba(30, 64, 175, 0.15);
-                                     cursor: pointer;
-                                     overflow: hidden;"
-                              onclick="editCourse('${escapeHtml(entry.course.code)}', '${escapeHtml(entry.meeting.day)}', '${escapeHtml(entry.meeting.startTime)}')">`;
-                html += `<div class="course-code" style="font-weight: 700; color: #1e40af; font-size: clamp(0.5rem, 0.8vw, 0.7rem); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(entry.course.code)}</div>`;
-                if (entry.course.subject && entry.course.subject !== entry.course.code) {
-                    html += `<div class="course-subject" style="font-size: clamp(0.4rem, 0.6vw, 0.6rem); color: #334155; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(entry.course.subject.substring(0, 15))}</div>`;
-                }
-                html += `<div class="course-time" style="font-size: clamp(0.35rem, 0.5vw, 0.5rem); color: #64748b;">${escapeHtml(entry.startTime)}-${escapeHtml(entry.endTime)}</div>`;
-                if (entry.meeting.room) {
-                    html += `<div class="course-room" style="font-size: clamp(0.3rem, 0.4vw, 0.45rem); color: #f59e0b;">${escapeHtml(entry.meeting.room.substring(0, 8))}</div>`;
-                }
-                html += `</div>`;
-                html += `</td>`;
-            } else {
-                html += `<td class="empty-cell" data-day="${dayIdx}" data-hour="${hour}"></td>`;
-            }
+            html += `<td class="empty-cell" data-day="${dayIdx}" data-hour="${hour}"></td>`;
         }
         html += `</tr>`;
     }
     
     html += `</tbody></table>`;
+    html += `<div class="events-layer" id="eventsLayer"></div>`;
     html += `</div>`;
     
+
     document.getElementById('timetableGrid').innerHTML = html;
     
-    // Now handle rowspans for courses that span multiple hours
-    handleRowSpans();
+    // Position events after DOM is rendered
+    requestAnimationFrame(() => {
+        positionEvents(dayEvents);
+    });
+
+    document.getElementById('timetableGrid').innerHTML = html;
+    
+    // Position events after DOM is rendered
+    requestAnimationFrame(() => {
+        positionEvents(dayEvents);
+    });
+    
+    // ADD THIS: Store dayEvents for resize handling
+    window._dayEvents = dayEvents;
+    
+    // Remove old resize listener if exists
+    if (window._resizeListener) {
+        window.removeEventListener('resize', window._resizeListener);
+    }
+    
+    // Add resize listener to reposition on window resize
+    window._resizeListener = function() {
+        if (window._dayEvents) {
+            positionEvents(window._dayEvents);
+        }
+    };
+    window.addEventListener('resize', window._resizeListener);
+}
+
+function positionEvents(dayEvents) {
+    const table = document.getElementById('timetableTable');
+    const eventsLayer = document.getElementById('eventsLayer');
+    const wrapper = document.getElementById('timetableWrapper');
+    
+    if (!table || !eventsLayer || !wrapper) return;
+
+    // Clear previous events
+    eventsLayer.innerHTML = '';
+    
+    // ADD THIS - dayIndex mapping
+    const dayIndex = { 'Monday': 0, 'Tuesday': 1, 'Wednesday': 2, 'Thursday': 3, 'Friday': 4, 'Saturday': 5 };
+    
+    // Wait for layout to settle
+    setTimeout(() => {
+        const tableRect = table.getBoundingClientRect();
+        const wrapperRect = wrapper.getBoundingClientRect();
+        
+        // Get cell dimensions from the first row
+        const firstRow = table.querySelector('tbody tr');
+        if (!firstRow) return;
+        
+        const cells = firstRow.querySelectorAll('td');
+        if (cells.length < 2) return;
+        
+        // Get time column width
+        const timeCell = cells[0];
+        const timeColWidth = timeCell.offsetWidth;
+        
+        // Get day cell width (all day cells should be equal)
+        const dayCell = cells[1];
+        const dayWidth = dayCell.offsetWidth;
+        
+        // Get row height
+        const rowHeight = firstRow.offsetHeight;
+        
+        // Get header height
+        const thead = table.querySelector('thead');
+        const headerHeight = thead ? thead.offsetHeight : 0;
+        
+        // Calculate total table width
+        const totalWidth = timeColWidth + (dayWidth * 6);
+        const totalHeight = table.offsetHeight;
+        
+        // Set events layer dimensions
+        eventsLayer.style.width = totalWidth + 'px';
+        eventsLayer.style.height = totalHeight + 'px';
+        eventsLayer.style.position = 'absolute';
+        eventsLayer.style.top = '0';
+        eventsLayer.style.left = '0';
+        eventsLayer.style.pointerEvents = 'none';
+        eventsLayer.style.overflow = 'hidden';
+        
+        // Clear previous events
+        eventsLayer.innerHTML = '';
+        
+        const GAP = 2;
+        const START_HOUR = 5;
+        
+        // Position each event
+        for (const day in dayEvents) {
+            const events = dayEvents[day];
+            const colIndex = dayIndex[day];  // ← Now dayIndex is defined
+            if (colIndex === undefined) continue;
+            
+            for (const event of events) {
+                // Calculate position
+                const startOffset = (event.start - START_HOUR) * rowHeight + headerHeight;
+                const duration = (event.end - event.start) * rowHeight;
+                
+                const eventWidth = (dayWidth / event.maxColumns) - GAP;
+                const leftOffset = timeColWidth + (colIndex * dayWidth) + (event.column * (dayWidth / event.maxColumns)) + (GAP / 2);
+                
+                // Create course element
+                const el = document.createElement('div');
+                el.className = 'course-block absolute-course';
+                el.style.position = 'absolute';
+                el.style.top = startOffset + 'px';
+                el.style.left = leftOffset + 'px';
+                el.style.width = eventWidth + 'px';
+                el.style.height = duration + 'px';
+                el.style.minHeight = '30px';
+                el.style.background = '#c8e0ff';
+                el.style.borderRadius = '6px';
+                el.style.padding = '4px 6px';
+                el.style.border = '1px solid rgba(30, 64, 175, 0.15)';
+                el.style.cursor = 'pointer';
+                el.style.overflow = 'hidden';
+                el.style.boxSizing = 'border-box';
+                el.style.display = 'flex';
+                el.style.flexDirection = 'column';
+                el.style.pointerEvents = 'auto';
+                
+                // Build content
+                let content = `<div class="course-code" style="font-weight: 700; color: #1e40af; font-size: clamp(0.4rem, 0.7vw, 0.6rem); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(event.course.code)}</div>`;
+                if (event.course.subject && event.course.subject !== event.course.code) {
+                    content += `<div class="course-subject" style="font-size: clamp(0.35rem, 0.5vw, 0.5rem); color: #334155; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(event.course.subject.substring(0, 15))}</div>`;
+                }
+                content += `<div class="course-time" style="font-size: clamp(0.3rem, 0.4vw, 0.4rem); color: #64748b;">${escapeHtml(event.startTime)}-${escapeHtml(event.endTime)}</div>`;
+                if (event.meeting.room) {
+                    content += `<div class="course-room" style="font-size: clamp(0.25rem, 0.3vw, 0.35rem); color: #f59e0b;">${escapeHtml(event.meeting.room.substring(0, 8))}</div>`;
+                }
+                el.innerHTML = content;
+                
+                // Click handler
+                el.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    editCourse(event.course.code, event.meeting.day, event.meeting.startTime);
+                });
+                
+                eventsLayer.appendChild(el);
+            }
+        }
+    }, 50);
 }
 
 // Handle rowspans for courses that span multiple hours
