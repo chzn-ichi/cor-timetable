@@ -119,7 +119,7 @@ function showDemoGrid() {
     }
     
     let html = '<div class="timetable-wrapper">';
-    html += '<table class="timetable">';
+    html += '<table class="timetable" id="timetableTable">';  // Add id here too
     html += '<thead><tr><th class="time-col">Time</th>';
     days.forEach(day => { html += `<th>${day}</th>`; });
     html += '</thead><tbody>';
@@ -481,6 +481,7 @@ function renderTimetableGrid() {
     const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
     const dayMap = { 'M': 'Monday', 'T': 'Tuesday', 'W': 'Wednesday', 'Th': 'Thursday', 'F': 'Friday', 'S': 'Saturday' };
     const dayIndex = { 'Monday': 0, 'Tuesday': 1, 'Wednesday': 2, 'Thursday': 3, 'Friday': 4, 'Saturday': 5 };
+    const dayShortMap = { 'Monday': 'M', 'Tuesday': 'T', 'Wednesday': 'W', 'Thursday': 'Th', 'Friday': 'F', 'Saturday': 'S' };
     
     // Build time slots (5 AM to 11 PM)
     const times = [];
@@ -491,8 +492,9 @@ function renderTimetableGrid() {
         times.push(`${displayHour}:00 ${period}`);
     }
     
-    // Build events array
-    const events = [];
+    // Build schedule lookup: day + hour -> course info
+    const scheduleMap = {};
+    
     for (const course of currentCourses) {
         if (!course.meetings || course.meetings.length === 0) continue;
         
@@ -500,114 +502,179 @@ function renderTimetableGrid() {
             const fullDay = dayMap[meeting.day];
             if (!fullDay) continue;
             
-            const startFloat = timeToFloat(meeting.startTime);
-            const endFloat = timeToFloat(meeting.endTime);
+            const startHour = timeToFloat(meeting.startTime);
+            const endHour = timeToFloat(meeting.endTime);
             
-            events.push({
+            // Store in map by day and hour
+            const key = fullDay + '|' + startHour;
+            if (!scheduleMap[key]) {
+                scheduleMap[key] = [];
+            }
+            scheduleMap[key].push({
                 course: course,
                 meeting: meeting,
-                day: fullDay,
-                start: startFloat,
-                end: endFloat,
+                start: startHour,
+                end: endHour,
                 startTime: meeting.startTime,
                 endTime: meeting.endTime
             });
         }
     }
     
-    // Group events by day and calculate overlaps
-    const eventsByDay = {};
-    for (const day of days) {
-        eventsByDay[day] = events.filter(e => e.day === day);
-    }
-    
-    // Calculate column assignments for overlaps
-    for (const day of days) {
-        const dayEvents = eventsByDay[day];
-        if (dayEvents.length === 0) continue;
-        
-        // Sort by start time
-        dayEvents.sort((a, b) => a.start - b.start);
-        
-        // For each event, find max overlapping at its specific time range
-        for (const event of dayEvents) {
-            // Find all events that overlap with THIS event's time range
-            const overlappingAtThisTime = dayEvents.filter(e => 
-                e !== event && 
-                e.start < event.end && 
-                e.end > event.start
-            );
-            
-            // Assign column
-            event.column = 0;
-            let usedColumns = overlappingAtThisTime.map(e => e.column).filter(c => c !== undefined);
-            let col = 0;
-            while (usedColumns.includes(col)) col++;
-            event.column = col;
-            
-            // maxColumns for THIS event = overlapping count + 1
-            event.maxColumns = overlappingAtThisTime.length + 1;
-        }
-    }
-    
-    // Build the empty table grid
-    let html = '<div class="timetable-wrapper" style="position: relative;">';
-    html += '<table class="timetable">';
+    // Build the table
+    let html = '<div class="timetable-wrapper">';
+    html += '<table class="timetable" id="timetableTable">';
     html += '<thead><tr><th class="time-col">Time</th>';
     for (const day of days) {
         html += `<th>${day}</th>`;
     }
-    html += '</thead><tbody>';
+    html += '</tr></thead><tbody>';
     
     for (let slotIdx = 0; slotIdx < times.length; slotIdx++) {
         const timeLabel = times[slotIdx];
-        html += `<tr class="time-row" style="height: 70px;">`;
+        const hour = 5 + slotIdx;
+        html += `<tr class="time-row" data-hour="${hour}">`;
         html += `<td class="time-slot"><strong>${timeLabel}</strong></td>`;
-        for (let i = 0; i < days.length; i++) {
-            html += `<td class="empty-cell" style="height: 70px;"></td>`;
+        
+        for (let dayIdx = 0; dayIdx < days.length; dayIdx++) {
+            const day = days[dayIdx];
+            const key = day + '|' + hour;
+            
+            // Check if there's a course at this hour
+            const coursesAtThisHour = scheduleMap[key] || [];
+            
+            if (coursesAtThisHour.length > 0) {
+                // Get the first course (handle overlaps later)
+                const entry = coursesAtThisHour[0];
+                const startMinute = (entry.start - Math.floor(entry.start)) * 60;
+                const endMinute = (entry.end - Math.floor(entry.end)) * 60;
+                const startDisplay = startMinute === 0 ? '' : `:${String(startMinute).padStart(2, '0')}`;
+                const endDisplay = endMinute === 0 ? '' : `:${String(endMinute).padStart(2, '0')}`;
+                
+                // Check if this course spans multiple hours
+                const span = Math.ceil(entry.end) - Math.floor(entry.start);
+                
+                html += `<td class="course-cell-td" data-day="${dayIdx}" data-hour="${hour}" style="position: relative; padding: 2px;">`;
+                html += `<div class="course-block" 
+                              style="background: #c8e0ff; 
+                                     border-radius: 6px; 
+                                     padding: 3px 5px; 
+                                     height: 100%; 
+                                     min-height: 50px;
+                                     display: flex; 
+                                     flex-direction: column; 
+                                     justify-content: center;
+                                     border: 1px solid rgba(30, 64, 175, 0.15);
+                                     cursor: pointer;
+                                     overflow: hidden;"
+                              onclick="editCourse('${escapeHtml(entry.course.code)}', '${escapeHtml(entry.meeting.day)}', '${escapeHtml(entry.meeting.startTime)}')">`;
+                html += `<div class="course-code" style="font-weight: 700; color: #1e40af; font-size: clamp(0.5rem, 0.8vw, 0.7rem); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(entry.course.code)}</div>`;
+                if (entry.course.subject && entry.course.subject !== entry.course.code) {
+                    html += `<div class="course-subject" style="font-size: clamp(0.4rem, 0.6vw, 0.6rem); color: #334155; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(entry.course.subject.substring(0, 15))}</div>`;
+                }
+                html += `<div class="course-time" style="font-size: clamp(0.35rem, 0.5vw, 0.5rem); color: #64748b;">${escapeHtml(entry.startTime)}-${escapeHtml(entry.endTime)}</div>`;
+                if (entry.meeting.room) {
+                    html += `<div class="course-room" style="font-size: clamp(0.3rem, 0.4vw, 0.45rem); color: #f59e0b;">${escapeHtml(entry.meeting.room.substring(0, 8))}</div>`;
+                }
+                html += `</div>`;
+                html += `</td>`;
+            } else {
+                html += `<td class="empty-cell" data-day="${dayIdx}" data-hour="${hour}"></td>`;
+            }
         }
         html += `</tr>`;
     }
     
-    html += `</tbody>`;
-    html += `</table>`;
-    
-    // Add overlay layer with events
-    html += `<div class="events-layer" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0;">`;
-    
-    
-    const headerHeight = 47; // Approximate header height
-    
-    for (const event of events) {
-        const colIndex = dayIndex[event.day];
-        
-        // Original working calculations
-        const dayWidthPercent = 100 / days.length;  // 16.667%
-        const eventWidthPercent = (dayWidthPercent / event.maxColumns);
-
-        const adjustmentFactor = 0.93;  // Try 0.95, 0.93, 0.90
-        const adjustedDayWidth = dayWidthPercent * adjustmentFactor;
-        const leftPercent = (colIndex * adjustedDayWidth) + (event.column * (adjustedDayWidth / event.maxColumns));
-        
-        const topPos = (event.start - 5) * 70 + headerHeight;
-        const heightPos = (event.end - event.start) * 70 - 4;
-        
-        html += `
-            <div class="course-cell" onclick="editCourse('${escapeHtml(event.course.code)}', '${escapeHtml(event.meeting.day)}', '${escapeHtml(event.meeting.startTime)}')" 
-                style="position: absolute; top: ${topPos}px; left: calc(5.5vw + ${leftPercent}%); width: calc(${eventWidthPercent}% - 20px); height: ${heightPos}px; background: #c8e0ff; border-radius: 6px; padding: 15px 10px 5px; cursor: pointer; overflow: hidden; box-sizing: border-box;">
-                <div class="course-code" style="font-weight: 700; color: #1e40af; font-size: 0.7rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(event.course.code)}</div>
-                <div class="course-subject" style="font-size: 0.6rem; color: #334155; white-space: normal; word-break: break-word;">${escapeHtml((event.course.subject || '').substring(0, 20))}</div>
-                <div class="course-time" style="font-size: 0.55rem; color: #64748b;">${escapeHtml(event.startTime)} - ${escapeHtml(event.endTime)}</div>
-                <div class="course-room" style="font-size: 0.5rem; color: #f59e0b;">${escapeHtml((event.meeting.room || 'TBA').substring(0, 10))}</div>
-                ${event.course.faculty ? `<div class="course-faculty" style="font-size: 0.45rem; color: #6b8a9e; font-style: italic;">${escapeHtml(event.course.faculty.substring(0, 10))}</div>` : ''}
-            </div>
-        `;
-    }
-    
-    html += `</div>`;
+    html += `</tbody></table>`;
     html += `</div>`;
     
     document.getElementById('timetableGrid').innerHTML = html;
+    
+    // Now handle rowspans for courses that span multiple hours
+    handleRowSpans();
+}
+
+// Handle rowspans for courses that span multiple hours
+function handleRowSpans() {
+    const table = document.getElementById('timetableTable');
+    if (!table) return;
+    
+    const rows = table.querySelectorAll('tbody tr');
+    const dayMap = { 'M': 'Monday', 'T': 'Tuesday', 'W': 'Wednesday', 'Th': 'Thursday', 'F': 'Friday', 'S': 'Saturday' };
+    
+    // Collect all course blocks by day and start time
+    const courseBlocks = {};
+    
+    for (const course of currentCourses) {
+        if (!course.meetings) continue;
+        for (const meeting of course.meetings) {
+            const fullDay = dayMap[meeting.day];
+            if (!fullDay) continue;
+            const startHour = Math.floor(timeToFloat(meeting.startTime));
+            const endHour = Math.ceil(timeToFloat(meeting.endTime));
+            const span = endHour - startHour;
+            
+            if (span > 0) {
+                const key = fullDay + '|' + startHour;
+                if (!courseBlocks[key]) {
+                    courseBlocks[key] = [];
+                }
+                courseBlocks[key].push({
+                    course: course,
+                    meeting: meeting,
+                    span: span,
+                    startHour: startHour,
+                    endHour: endHour
+                });
+            }
+        }
+    }
+    
+    // Process each row
+    for (let rowIndex = 0; rowIndex < rows.length; rowIndex++) {
+        const row = rows[rowIndex];
+        const cells = row.querySelectorAll('td');
+        const hour = parseInt(row.dataset.hour);
+        
+        // Skip time column (index 0)
+        for (let colIndex = 1; colIndex < cells.length; colIndex++) {
+            const cell = cells[colIndex];
+            const dayIndex = colIndex - 1;
+            const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+            const day = days[dayIndex];
+            const key = day + '|' + hour;
+            
+            // Check if this cell has a course that should span
+            const block = courseBlocks[key];
+            if (block && block.length > 0) {
+                const entry = block[0];
+                // Check if this is the start of the course (not a continuation)
+                const startKey = day + '|' + entry.startHour;
+                if (key === startKey) {
+                    // This is the start - set rowspan
+                    const courseCell = cell.querySelector('.course-block');
+                    if (courseCell) {
+                        const parentTd = courseCell.closest('td');
+                        if (parentTd) {
+                            parentTd.rowSpan = entry.span;
+                            parentTd.style.verticalAlign = 'middle';
+                            
+                            // Remove the cell from subsequent rows
+                            for (let i = 1; i < entry.span; i++) {
+                                const nextRow = rows[rowIndex + i];
+                                if (nextRow) {
+                                    const nextCells = nextRow.querySelectorAll('td');
+                                    if (nextCells[colIndex]) {
+                                        nextCells[colIndex].style.display = 'none';
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
 function timeToFloat(timeStr) {
@@ -1059,13 +1126,10 @@ async function generateLockscreenImage() {
     } else if (sizeSelect && sizeSelect.value === 'custom') {
         const customWidth = parseInt(document.getElementById('lockscreenCustomWidth')?.value);
         const customHeight = parseInt(document.getElementById('lockscreenCustomHeight')?.value);
-        
-        // Use defaults if custom values are invalid
         targetWidth = (customWidth && customWidth > 0) ? customWidth : 1080;
         targetHeight = (customHeight && customHeight > 0) ? customHeight : 1920;
     }
     
-    // Ensure dimensions are valid
     if (!targetWidth || targetWidth <= 0) targetWidth = 1080;
     if (!targetHeight || targetHeight <= 0) targetHeight = 1920;
     
@@ -1103,7 +1167,6 @@ async function generateLockscreenImage() {
         scheduleByDay[day].sort((a, b) => timeToFloat(a.startTime) - timeToFloat(b.startTime));
     }
     
-    // Only include days that have classes
     const daysWithClasses = daysOrder.filter(day => scheduleByDay[day].length > 0);
     
     if (daysWithClasses.length === 0) {
@@ -1112,43 +1175,106 @@ async function generateLockscreenImage() {
         return;
     }
     
-    // Build lockscreen HTML
-    let html = `<div class="lockscreen-wallpaper" id="lockscreenWallpaper">`;
-    html += `<div class="lockscreen-title">`;
-    html += `<h1>Class Schedule</h1>`;
-    html += `</div>`;
-    html += `<div class="lockscreen-schedule">`;
+    // Build lockscreen HTML with FIXED SIZE - MORE SPACIOUS LAYOUT
+    const renderWidth = 1080;
+    const renderHeight = 1920;
+    
+    let html = `<div class="lockscreen-wallpaper" id="lockscreenWallpaper" style="
+        width: ${renderWidth}px;
+        height: ${renderHeight}px;
+        min-height: ${renderHeight}px;
+        background: #faf7f0;
+        padding: 60px 40px 40px 40px;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        box-sizing: border-box;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+    ">
+        <div class="lockscreen-title" style="text-align: center; margin-bottom: 32px; flex-shrink: 0;">
+            <h1 style="font-family: 'Playfair Display', 'Georgia', serif; font-size: 5rem; font-weight: 600; color: #2c3e4e; letter-spacing: -0.5px; margin: 0;">Class Schedule</h1>
+        </div>
+        <div class="lockscreen-schedule" style="display: flex; flex-direction: column; gap: 50px; flex: 1; overflow: hidden; justify-content: center;">
+    `;
     
     for (const day of daysWithClasses) {
         const classes = scheduleByDay[day];
         const shortDay = fullDayMap[day];
         
-        html += `<div class="day-card">`;
-        html += `<div class="day-header">`;
-        html += `<span class="day-name">${shortDay}</span>`;
-        html += `</div>`;
-        html += `<div class="class-list">`;
+        html += `<div class="day-card" style="
+            background: #e8f0fe;
+            border-radius: 24px;
+            padding: 32px 28px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+            flex-shrink: 0;
+        ">
+            <div class="day-header" style="
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                margin-bottom: 16px;
+                padding-bottom: 12px;
+                border-bottom: 2px solid rgba(44, 62, 78, 0.1);
+            ">
+                <span class="day-name" style="font-size: 2.2rem; font-weight: 700; color: #2c3e4e; letter-spacing: 0.5px;">${shortDay}</span>
+            </div>
+            <div class="class-list" style="display: flex; flex-direction: column; gap: 14px;">
+        `;
         
         for (const cls of classes) {
             const timeRange = `${cls.startTime} – ${cls.endTime}`;
             html += `
-                <div class="class-item">
-                    <div class="class-time">${escapeHtml(timeRange)}</div>
-                    <div class="class-name">${escapeHtml(cls.name.substring(0, 40))}</div>
-                    <div class="class-room">${escapeHtml(cls.room || 'TBA')}</div>
+                <div class="class-item" style="
+                    display: flex;
+                    align-items: baseline;
+                    gap: 20px;
+                    padding: 8px 0;
+                    flex-wrap: nowrap;
+                ">
+                    <div class="class-time" style="
+                        min-width: 160px;
+                        font-size: 1.4rem;
+                        font-weight: 500;
+                        color: #6b8a9e;
+                        font-family: 'SF Mono', 'Menlo', monospace;
+                        letter-spacing: -0.3px;
+                        flex-shrink: 0;
+                    ">${escapeHtml(timeRange)}</div>
+                    <div class="class-name" style="
+                        flex: 1;
+                        font-size: 1.5rem;
+                        font-weight: 600;
+                        color: #1a2a3a;
+                        letter-spacing: -0.3px;
+                        white-space: nowrap;
+                        overflow: hidden;
+                        text-overflow: ellipsis;
+                    ">${escapeHtml(cls.name.substring(0, 40))}</div>
+                    <div class="class-room" style="
+                        font-size: 1.3rem;
+                        font-weight: 500;
+                        color: #5a7a8e;
+                        min-width: 120px;
+                        text-align: right;
+                        flex-shrink: 0;
+                    ">${escapeHtml(cls.room || 'TBA')}</div>
                 </div>
             `;
         }
         html += `</div></div>`;
     }
     
-    html += `</div>`;
-    html += `</div>`;
+    html += `
+        </div>
+    </div>`;
     
     // Store original and show lockscreen
     const gridContainer = document.getElementById('timetableGrid');
     const originalContent = gridContainer.innerHTML;
     gridContainer.innerHTML = html;
+    
+    // Force reflow to ensure styles are applied
+    document.body.offsetHeight;
     
     setTimeout(async () => {
         const element = document.getElementById('lockscreenWallpaper');
@@ -1158,36 +1284,44 @@ async function generateLockscreenImage() {
         }
         
         try {
-            const rect = element.getBoundingClientRect();
-            
             const canvas = await html2canvas(element, {
                 scale: 2,
                 backgroundColor: '#faf7f0',
                 logging: false,
-                windowWidth: rect.width,
-                windowHeight: rect.height
+                width: renderWidth,
+                height: renderHeight,
+                useCORS: true,
+                allowTaint: true
             });
             
-            const finalCanvas = document.createElement('canvas');
-            finalCanvas.width = targetWidth;
-            finalCanvas.height = targetHeight;
-            const ctx = finalCanvas.getContext('2d');
+            // If the target resolution is different, resize the canvas
+            let finalCanvas = canvas;
+            if (canvas.width !== targetWidth || canvas.height !== targetHeight) {
+                finalCanvas = document.createElement('canvas');
+                finalCanvas.width = targetWidth;
+                finalCanvas.height = targetHeight;
+                const ctx = finalCanvas.getContext('2d');
+                ctx.drawImage(canvas, 0, 0, targetWidth, targetHeight);
+            }
             
-            ctx.fillStyle = '#faf7f0';
-            ctx.fillRect(0, 0, targetWidth, targetHeight);
-            
-            // Apply padding
-            const scale = Math.min(
-                targetWidth / rect.width,
-                targetHeight / rect.height
-            ) * (1 - padding);
-            
-            const scaledWidth = rect.width * scale;
-            const scaledHeight = rect.height * scale;
-            const x = (targetWidth - scaledWidth) / 2;
-            const y = (targetHeight - scaledHeight) / 2;
-            
-            ctx.drawImage(canvas, x, y, scaledWidth, scaledHeight);
+            // Apply padding if needed
+            if (padding > 0) {
+                const paddedCanvas = document.createElement('canvas');
+                paddedCanvas.width = targetWidth;
+                paddedCanvas.height = targetHeight;
+                const ctx = paddedCanvas.getContext('2d');
+                ctx.fillStyle = '#faf7f0';
+                ctx.fillRect(0, 0, targetWidth, targetHeight);
+                
+                const paddingPx = padding * Math.min(targetWidth, targetHeight);
+                const scaledWidth = targetWidth - (paddingPx * 2);
+                const scaledHeight = targetHeight - (paddingPx * 2);
+                const x = (targetWidth - scaledWidth) / 2;
+                const y = (targetHeight - scaledHeight) / 2;
+                
+                ctx.drawImage(finalCanvas, x, y, scaledWidth, scaledHeight);
+                finalCanvas = paddedCanvas;
+            }
             
             const link = document.createElement('a');
             link.download = `lockscreen_${targetWidth}x${targetHeight}.png`;
@@ -1202,7 +1336,7 @@ async function generateLockscreenImage() {
             gridContainer.innerHTML = originalContent;
             showLoading(false);
         }
-    }, 200);
+    }, 300);
 }
 
 function loadScript(src) {
