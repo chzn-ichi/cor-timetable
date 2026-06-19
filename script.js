@@ -8,9 +8,135 @@ let currentEditingCourse = null;
 let currentEditingMeetingIndex = null;
 
 
+const LOCKSREEN_THEMES = {
+    default: {
+        name: 'Default',
+        background: '#faf7f0',
+        card: '#e8f0fe',
+        title: '#2c3e4e',
+        dayName: '#2c3e4e',
+        text: '#1a2a3a',
+        time: '#6b8a9e',
+        room: '#5a7a8e',
+        border: 'rgba(44, 62, 78, 0.1)'
+    },
+    ustp: {
+        name: 'USTP-inspired',
+        background: '#1f1a4f',
+        card: '#2a2470',
+        title: '#f2af11',
+        dayName: '#f2af11',
+        text: '#f7f7f7',
+        time: '#f2af11',
+        room: '#f7f7f7',
+        border: 'rgba(242, 175, 17, 0.2)'
+    },
+    dark: {
+        name: 'Dark Mode',
+        background: '#0f0f1a',
+        card: '#1a2a3a',
+        title: '#e2e8f0',
+        dayName: '#94a3b8',
+        text: '#e2e8f0',
+        time: '#94a3b8',
+        room: '#8a9aa8',
+        border: 'rgba(255, 255, 255, 0.1)'
+    },
+    midnight: {
+        name: 'Midnight',
+        background: '#0d0d2b',
+        card: '#1a1a4a',
+        title: '#b8b8f0',
+        dayName: '#8888c8',
+        text: '#c8c8f0',
+        time: '#8888c8',
+        room: '#7878b8',
+        border: 'rgba(150, 150, 255, 0.1)'
+    },
+    darkAcad: {
+        name: 'Dark Academia',
+        background: '#2a1a1a',
+        card: '#4a2a1a',
+        title: '#f5cba7',
+        dayName: '#e8a87c',
+        text: '#f5d5b8',
+        time: '#e8a87c',
+        room: '#d4886a',
+        border: 'rgba(255, 200, 150, 0.15)'
+    },
+    matcha1: {
+        name: 'Matcha 1 (Performative Male)',
+        background: '#1a2e1a',
+        card: '#2a4a2a',
+        title: '#b8d9b8',
+        dayName: '#8ab88a',
+        text: '#d4e8d4',
+        time: '#8ab88a',
+        room: '#6a9a6a',
+        border: 'rgba(255, 255, 255, 0.08)'
+    },
+    matcha2: {
+        name: 'Matcha 2 (Estitik)',
+        background: '#ddbea9',
+        card: '#6b705c',
+        title: '#6b705c',
+        dayName: '#ddbea9',
+        text: '#ddbea9',
+        time: '#b7b7a4',
+        room: '#ddbea9',
+        border: 'rgba(255, 100, 100, 0.15)'
+    },
+    minimal: {
+        name: 'Minimal (Personal fav lol)',
+        background: '#ffffff',
+        card: '#f5f5f5',
+        title: '#333333',
+        dayName: '#666666',
+        text: '#333333',
+        time: '#666666',
+        room: '#555555',
+        border: 'rgba(0, 0, 0, 0.08)'
+    },
+    pastelGreen: {
+        name: 'Pastel Green',
+        background: '#fff9e0',
+        card: '#d9ebd3',
+        title: '#4a6a5a',
+        dayName: '#7a9a8a',
+        text: '#4a5a52',
+        time: '#8aaa9a',
+        room: '#a3c4bd',
+        border: 'rgba(120, 150, 130, 0.15)'
+    },
+    pastelPink: {
+        name: 'Pastel Pink',
+        background: '#fdf0f5',
+        card: '#f5e0e8',
+        title: '#6b4a5a',
+        dayName: '#8a6a7a',
+        text: '#5a4a52',
+        time: '#8a6a7a',
+        room: '#7a5a6a',
+        border: 'rgba(100, 70, 80, 0.1)'
+    },
+    pastelBlue: {
+        name: 'Pastel Blue',
+        background: '#f0f8ff',
+        card: '#dfeef8',
+        title: '#4a5f6b',
+        dayName: '#6a8191',
+        text: '#4a555f',
+        time: '#6a8191',
+        room: '#5a7282',
+        border: 'rgba(70, 90, 110, 0.1)'
+    }
+};
+
+
 document.addEventListener('DOMContentLoaded', () => {
     const fileInput = document.getElementById('fileInput');
     const resetBtn = document.getElementById('resetBtn');
+    document.getElementById('exportICSBtn').addEventListener('click', exportICS);
     const lockscreenBtn = document.getElementById('lockscreenBtn');
     
     // Lockscreen modal handlers
@@ -137,7 +263,7 @@ function showDemoGrid() {
     html += `</div>`;
     
     html += `<div style="margin-top: 20px; padding: 12px; background: #fffbeb; border-radius: 12px; color: #92400e; font-size: 0.75rem; text-align: center; border: 1px solid #fde68a;">
-                <strong>📌 Demo Mode:</strong> Upload your COR PDF (IT or CE) to see your actual schedule.
+                <strong>Demo Mode:</strong> Upload your COR PDF (IT or CE) to see your actual schedule.
              </div>`;
     
     document.getElementById('timetableGrid').innerHTML = html;
@@ -388,52 +514,50 @@ function extractSchedulesFromText(text, course) {
         // Get the text after the time pattern
         const afterTime = text.substring(scheduleMatch.index + scheduleMatch[0].length);
         
-        // Extract room - simplified approach
+        // Extract room - improved to capture full room name including parentheses
         let room = "";
-        
-        // Try to extract room after slash or parentheses
-        const slashMatch = afterTime.match(/^\s*\/\s*([^\/\s]+(?:\s+[^\/\s]+)*?)(?=\s+\/|\s+[A-Z]|$)/);
-        if (slashMatch) {
-            room = slashMatch[1].trim();
-        }
-        
-        // Try parentheses
-        if (!room) {
-            const parenMatch = afterTime.match(/\(([^)]+)\)/);
-            if (parenMatch) {
-                room = parenMatch[1];
+
+        // Try to extract room - look for room number pattern with optional parentheses content
+        // Pattern: room number (like 09-302) optionally followed by (CITC Lab 3) or similar
+        const fullRoomMatch = afterTime.match(/\b(\d{2,3}-\d{3,4})\s*(?:\(([^)]+)\))?/i);
+        if (fullRoomMatch) {
+            room = fullRoomMatch[1];
+            if (fullRoomMatch[2]) {
+                room = room + '(' + fullRoomMatch[2] + ')';
             }
         }
-        
-        // Try simple room number
+
+        // If no room number found, try "Modular Classroom"
         if (!room) {
-            const simpleRoom = afterTime.match(/\d{2,3}-\d{3,4}/);
+            const modularMatch = afterTime.match(/(Modular\s*Classroom\s*\d+)/i);
+            if (modularMatch) {
+                room = modularMatch[1];
+            }
+        }
+
+        // If still no room, try "Lab"
+        if (!room) {
+            const labMatch = afterTime.match(/([A-Za-z]+\s*Lab\s*\d+)/i);
+            if (labMatch) {
+                room = labMatch[1];
+            }
+        }
+
+        // If still no room, try simple room number without parentheses
+        if (!room) {
+            const simpleRoom = afterTime.match(/\b(\d{2,3}-\d{3,4})\b/);
             if (simpleRoom) {
-                room = simpleRoom[0];
+                room = simpleRoom[1];
             }
         }
-        
-        // Try modular classroom
-        if (!room) {
-            const modularRoom = afterTime.match(/Modular Classroom\s*\d+/i);
-            if (modularRoom) {
-                room = modularRoom[0];
-            }
-        }
-        
-        // Try lab room
-        if (!room) {
-            const labRoom = afterTime.match(/[A-Za-z]+\s*Lab\s*\d+/i);
-            if (labRoom) {
-                room = labRoom[0];
-            }
-        }
-        
+
         // Clean up room - remove any leftover faculty-like text
         if (room) {
-            room = room.replace(/\s+(Mr\.|Ms\.|Mrs\.|Dr\.|MA\.|Ma\.|Prof\.|Engr\.).*$/i, '');
+            // Remove faculty names that might be attached
+            room = room.replace(/\s+(Mr\.|Ms\.|Mrs\.|Dr\.|MA\.|Ma\.|Prof\.|Engr\.|GEON|SEDINIO|NERI|ANS AO|TAMANG|GELIG|CABLINDA|CORBITA|YBAÑEZ|LEOP).*$/i, '');
             room = room.replace(/\s+[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*$/, '');
-            room = room.substring(0, 50);
+            room = room.trim();
+            room = room.substring(0, 60);
         }
         
         // Handle multi-day codes
@@ -602,14 +726,6 @@ function renderTimetableGrid() {
     html += `</tbody></table>`;
     html += `<div class="events-layer" id="eventsLayer"></div>`;
     html += `</div>`;
-    
-
-    document.getElementById('timetableGrid').innerHTML = html;
-    
-    // Position events after DOM is rendered
-    requestAnimationFrame(() => {
-        positionEvents(dayEvents);
-    });
 
     document.getElementById('timetableGrid').innerHTML = html;
     
@@ -729,13 +845,13 @@ function positionEvents(dayEvents) {
                 el.style.pointerEvents = 'auto';
                 
                 // Build content
-                let content = `<div class="course-code" style="font-weight: 700; color: #1e40af; font-size: clamp(0.4rem, 0.7vw, 0.6rem); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(event.course.code)}</div>`;
+                let content = `<div class="course-code" style="font-weight: 700; color: #1e40af; font-size: clamp(0.4rem, 0.9vw, 0.7rem); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(event.course.code)}</div>`;
                 if (event.course.subject && event.course.subject !== event.course.code) {
-                    content += `<div class="course-subject" style="font-size: clamp(0.35rem, 0.5vw, 0.5rem); color: #334155; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(event.course.subject.substring(0, 15))}</div>`;
+                    content += `<div class="course-subject" style="font-size: clamp(0.35rem, 0.8vw, 0.6rem); color: #334155; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(event.course.subject.substring(0, 15))}</div>`;
                 }
-                content += `<div class="course-time" style="font-size: clamp(0.3rem, 0.4vw, 0.4rem); color: #64748b;">${escapeHtml(event.startTime)}-${escapeHtml(event.endTime)}</div>`;
+                content += `<div class="course-time" style="font-size: clamp(0.3rem, 0.7vw, 0.5rem); color: #64748b;">${escapeHtml(event.startTime)}-${escapeHtml(event.endTime)}</div>`;
                 if (event.meeting.room) {
-                    content += `<div class="course-room" style="font-size: clamp(0.25rem, 0.3vw, 0.35rem); color: #f59e0b;">${escapeHtml(event.meeting.room.substring(0, 8))}</div>`;
+                    content += `<div class="course-room" style="font-size: clamp(0.25rem, 0.7vw, 0.5rem); color: #f59e0b;">${escapeHtml(event.meeting.room.substring(0, 8))}</div>`;
                 }
                 el.innerHTML = content;
                 
@@ -751,88 +867,6 @@ function positionEvents(dayEvents) {
     }, 50);
 }
 
-// Handle rowspans for courses that span multiple hours
-function handleRowSpans() {
-    const table = document.getElementById('timetableTable');
-    if (!table) return;
-    
-    const rows = table.querySelectorAll('tbody tr');
-    const dayMap = { 'M': 'Monday', 'T': 'Tuesday', 'W': 'Wednesday', 'Th': 'Thursday', 'F': 'Friday', 'S': 'Saturday' };
-    
-    // Collect all course blocks by day and start time
-    const courseBlocks = {};
-    
-    for (const course of currentCourses) {
-        if (!course.meetings) continue;
-        for (const meeting of course.meetings) {
-            const fullDay = dayMap[meeting.day];
-            if (!fullDay) continue;
-            const startHour = Math.floor(timeToFloat(meeting.startTime));
-            const endHour = Math.ceil(timeToFloat(meeting.endTime));
-            const span = endHour - startHour;
-            
-            if (span > 0) {
-                const key = fullDay + '|' + startHour;
-                if (!courseBlocks[key]) {
-                    courseBlocks[key] = [];
-                }
-                courseBlocks[key].push({
-                    course: course,
-                    meeting: meeting,
-                    span: span,
-                    startHour: startHour,
-                    endHour: endHour
-                });
-            }
-        }
-    }
-    
-    // Process each row
-    for (let rowIndex = 0; rowIndex < rows.length; rowIndex++) {
-        const row = rows[rowIndex];
-        const cells = row.querySelectorAll('td');
-        const hour = parseInt(row.dataset.hour);
-        
-        // Skip time column (index 0)
-        for (let colIndex = 1; colIndex < cells.length; colIndex++) {
-            const cell = cells[colIndex];
-            const dayIndex = colIndex - 1;
-            const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-            const day = days[dayIndex];
-            const key = day + '|' + hour;
-            
-            // Check if this cell has a course that should span
-            const block = courseBlocks[key];
-            if (block && block.length > 0) {
-                const entry = block[0];
-                // Check if this is the start of the course (not a continuation)
-                const startKey = day + '|' + entry.startHour;
-                if (key === startKey) {
-                    // This is the start - set rowspan
-                    const courseCell = cell.querySelector('.course-block');
-                    if (courseCell) {
-                        const parentTd = courseCell.closest('td');
-                        if (parentTd) {
-                            parentTd.rowSpan = entry.span;
-                            parentTd.style.verticalAlign = 'middle';
-                            
-                            // Remove the cell from subsequent rows
-                            for (let i = 1; i < entry.span; i++) {
-                                const nextRow = rows[rowIndex + i];
-                                if (nextRow) {
-                                    const nextCells = nextRow.querySelectorAll('td');
-                                    if (nextCells[colIndex]) {
-                                        nextCells[colIndex].style.display = 'none';
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
 
 function timeToFloat(timeStr) {
     const match = timeStr.match(/(\d+):(\d+)\s*(AM|PM)/i);
@@ -1233,7 +1267,7 @@ function resetToOriginal() {
 }
 
 // ========== LOCKSREEN WALLPAPER GENERATOR ==========
-let lockscreenPadding = 10;
+let lockscreenPadding = 5;
 
 async function generateLockscreen() {
     if (currentCourses.length === 0) {
@@ -1256,8 +1290,15 @@ function openLockscreenModal() {
     const paddingSlider = document.getElementById('paddingSlider');
     const paddingValue = document.getElementById('paddingValue');
     if (paddingSlider) {
-        paddingSlider.value = lockscreenPadding || 10;
-        paddingValue.textContent = lockscreenPadding || 10;
+        paddingSlider.value = lockscreenPadding || 5;
+        paddingValue.textContent = lockscreenPadding || 5;
+    }
+    
+    // Load saved theme
+    const themeSelect = document.getElementById('lockscreenTheme');
+    if (themeSelect) {
+        const savedTheme = localStorage.getItem('lockscreenTheme') || 'default';
+        themeSelect.value = savedTheme;
     }
     
     document.getElementById('lockscreenModal').style.display = 'block';
@@ -1294,6 +1335,14 @@ async function generateLockscreenImage() {
     const padding = parseInt(document.getElementById('paddingSlider').value) / 100;
     lockscreenPadding = parseInt(document.getElementById('paddingSlider').value);
     
+    // Get selected theme
+    const themeSelect = document.getElementById('lockscreenTheme');
+    const themeKey = themeSelect ? themeSelect.value : 'default';
+    const theme = LOCKSREEN_THEMES[themeKey] || LOCKSREEN_THEMES.default;
+    
+    // Save theme preference
+    localStorage.setItem('lockscreenTheme', themeKey);
+    
     const dayMap = { 'M': 'Monday', 'T': 'Tuesday', 'W': 'Wednesday', 'Th': 'Thursday', 'F': 'Friday', 'S': 'Saturday' };
     const fullDayMap = { 'Monday': 'MON', 'Tuesday': 'TUE', 'Wednesday': 'WED', 'Thursday': 'THU', 'Friday': 'FRI', 'Saturday': 'SAT' };
     
@@ -1304,11 +1353,9 @@ async function generateLockscreenImage() {
     
     for (const course of currentCourses) {
         if (!course.meetings || course.meetings.length === 0) continue;
-        
         for (const meeting of course.meetings) {
             const fullDay = dayMap[meeting.day];
             if (!fullDay) continue;
-            
             scheduleByDay[fullDay].push({
                 code: course.code,
                 name: course.subject || course.code,
@@ -1332,7 +1379,7 @@ async function generateLockscreenImage() {
         return;
     }
     
-    // Build lockscreen HTML with FIXED SIZE - MORE SPACIOUS LAYOUT
+    // Build lockscreen HTML with theme colors
     const renderWidth = 1080;
     const renderHeight = 1920;
     
@@ -1340,7 +1387,7 @@ async function generateLockscreenImage() {
         width: ${renderWidth}px;
         height: ${renderHeight}px;
         min-height: ${renderHeight}px;
-        background: #faf7f0;
+        background: ${theme.background};
         padding: 60px 40px 40px 40px;
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         box-sizing: border-box;
@@ -1349,7 +1396,7 @@ async function generateLockscreenImage() {
         justify-content: center;
     ">
         <div class="lockscreen-title" style="text-align: center; margin-bottom: 32px; flex-shrink: 0;">
-            <h1 style="font-family: 'Playfair Display', 'Georgia', serif; font-size: 5rem; font-weight: 600; color: #2c3e4e; letter-spacing: -0.5px; margin: 0;">Class Schedule</h1>
+            <h1 style="font-family: 'Playfair Display', 'Georgia', serif; font-size: 5rem; font-weight: 600; color: ${theme.title}; letter-spacing: -0.5px; margin: 0;">Class Schedule</h1>
         </div>
         <div class="lockscreen-schedule" style="display: flex; flex-direction: column; gap: 50px; flex: 1; overflow: hidden; justify-content: center;">
     `;
@@ -1359,7 +1406,7 @@ async function generateLockscreenImage() {
         const shortDay = fullDayMap[day];
         
         html += `<div class="day-card" style="
-            background: #e8f0fe;
+            background: ${theme.card};
             border-radius: 24px;
             padding: 32px 28px;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
@@ -1371,9 +1418,9 @@ async function generateLockscreenImage() {
                 justify-content: space-between;
                 margin-bottom: 16px;
                 padding-bottom: 12px;
-                border-bottom: 2px solid rgba(44, 62, 78, 0.1);
+                border-bottom: 2px solid ${theme.border};
             ">
-                <span class="day-name" style="font-size: 2.2rem; font-weight: 700; color: #2c3e4e; letter-spacing: 0.5px;">${shortDay}</span>
+                <span class="day-name" style="font-size: 2.2rem; font-weight: 700; color: ${theme.dayName}; letter-spacing: 0.5px;">${shortDay}</span>
             </div>
             <div class="class-list" style="display: flex; flex-direction: column; gap: 14px;">
         `;
@@ -1392,7 +1439,7 @@ async function generateLockscreenImage() {
                         min-width: 160px;
                         font-size: 1.4rem;
                         font-weight: 500;
-                        color: #6b8a9e;
+                        color: ${theme.time};
                         font-family: 'SF Mono', 'Menlo', monospace;
                         letter-spacing: -0.3px;
                         flex-shrink: 0;
@@ -1401,7 +1448,7 @@ async function generateLockscreenImage() {
                         flex: 1;
                         font-size: 1.5rem;
                         font-weight: 600;
-                        color: #1a2a3a;
+                        color: ${theme.text};
                         letter-spacing: -0.3px;
                         white-space: nowrap;
                         overflow: hidden;
@@ -1410,7 +1457,7 @@ async function generateLockscreenImage() {
                     <div class="class-room" style="
                         font-size: 1.3rem;
                         font-weight: 500;
-                        color: #5a7a8e;
+                        color: ${theme.room};
                         min-width: 120px;
                         text-align: right;
                         flex-shrink: 0;
@@ -1467,7 +1514,8 @@ async function generateLockscreenImage() {
                 paddedCanvas.width = targetWidth;
                 paddedCanvas.height = targetHeight;
                 const ctx = paddedCanvas.getContext('2d');
-                ctx.fillStyle = '#faf7f0';
+                // Use the theme's background color instead of hardcoded white
+                ctx.fillStyle = theme.background;  // ← FIXED!
                 ctx.fillRect(0, 0, targetWidth, targetHeight);
                 
                 const paddingPx = padding * Math.min(targetWidth, targetHeight);
@@ -1495,6 +1543,137 @@ async function generateLockscreenImage() {
         }
     }, 300);
 }
+
+
+function exportICS() {
+    if (currentCourses.length === 0) {
+        showStatus('No schedule to export. Upload your COR first.', 'error');
+        return;
+    }
+    
+    const dayMap = { 'M': 'Monday', 'T': 'Tuesday', 'W': 'Wednesday', 'Th': 'Thursday', 'F': 'Friday', 'S': 'Saturday' };
+    const daysOfWeek = { 'Monday': 0, 'Tuesday': 1, 'Wednesday': 2, 'Thursday': 3, 'Friday': 4, 'Saturday': 5 };
+    
+    // Get current date to determine which week to use
+    const now = new Date();
+    const currentDay = now.getDay(); // 0 = Sunday, 1 = Monday, etc.
+    
+    // Find the nearest Monday
+    const mondayOffset = (currentDay === 0) ? -6 : 1 - currentDay;
+    const monday = new Date(now);
+    monday.setDate(now.getDate() + mondayOffset);
+    monday.setHours(0, 0, 0, 0);
+    
+    // Build ICS file
+    let ics = [
+        'BEGIN:VCALENDAR',
+        'VERSION:2.0',
+        'PRODID:-//USTP Schedule Maker//EN',
+        'CALSCALE:GREGORIAN',
+        'METHOD:PUBLISH'
+    ];
+    
+    let eventCount = 0;
+    
+    for (const course of currentCourses) {
+        if (!course.meetings || course.meetings.length === 0) continue;
+        
+        for (const meeting of course.meetings) {
+            const fullDay = dayMap[meeting.day];
+            if (!fullDay) continue;
+            
+            const dayIndex = daysOfWeek[fullDay];
+            if (dayIndex === undefined) continue;
+            
+            // Calculate date for this day
+            const eventDate = new Date(monday);
+            eventDate.setDate(monday.getDate() + dayIndex);
+            
+            // Parse start and end times
+            const startParts = meeting.startTime.match(/(\d+):(\d+)\s*(AM|PM)/i);
+            const endParts = meeting.endTime.match(/(\d+):(\d+)\s*(AM|PM)/i);
+            if (!startParts || !endParts) continue;
+            
+            let startHour = parseInt(startParts[1]);
+            const startMinute = parseInt(startParts[2]);
+            const startMeridian = startParts[3].toUpperCase();
+            
+            let endHour = parseInt(endParts[1]);
+            const endMinute = parseInt(endParts[2]);
+            const endMeridian = endParts[3].toUpperCase();
+            
+            // Convert to 24-hour
+            if (startMeridian === 'PM' && startHour !== 12) startHour += 12;
+            if (startMeridian === 'AM' && startHour === 12) startHour = 0;
+            if (endMeridian === 'PM' && endHour !== 12) endHour += 12;
+            if (endMeridian === 'AM' && endHour === 12) endHour = 0;
+            
+            // Format date for ICS (YYYYMMDDTHHMMSS)
+            const formatDate = (date) => {
+                const year = date.getFullYear();
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const day = String(date.getDate()).padStart(2, '0');
+                return `${year}${month}${day}`;
+            };
+            
+            const dateStr = formatDate(eventDate);
+            const startTimeStr = String(startHour).padStart(2, '0') + String(startMinute).padStart(2, '0') + '00';
+            const endTimeStr = String(endHour).padStart(2, '0') + String(endMinute).padStart(2, '0') + '00';
+            
+            // Build event details
+            const subject = `${course.code} - ${course.subject || course.code}`;
+            const location = meeting.room || 'TBA';
+            const description = `Course: ${course.code}\nSubject: ${course.subject || ''}\nFaculty: ${course.faculty || 'TBA'}\nRoom: ${meeting.room || 'TBA'}`;
+            
+            // Generate a unique ID for this event
+            const uid = `${course.code}-${dateStr}-${startTimeStr}-${Math.random().toString(36).substr(2, 8)}`;
+            
+            // Get day abbreviation for RRULE (e.g., MO, TU, WE, TH, FR, SA)
+            const dayAbbr = fullDay.substring(0, 2).toUpperCase();
+            
+            ics.push(
+                'BEGIN:VEVENT',
+                `UID:${uid}@ustp-schedule-maker`,
+                `DTSTAMP:${new Date().toISOString().replace(/[-:]/g, '').split('.')[0]}Z`,
+                `DTSTART:${dateStr}T${startTimeStr}`,
+                `DTEND:${dateStr}T${endTimeStr}`,
+                `SUMMARY:${subject}`,
+                `LOCATION:${location}`,
+                `DESCRIPTION:${description}`,
+                `RRULE:FREQ=WEEKLY;BYDAY=${dayAbbr}`,
+                'END:VEVENT'
+            );
+            
+            eventCount++;
+        }
+    }
+    
+    ics.push('END:VCALENDAR');
+    
+    if (eventCount === 0) {
+        showStatus('No valid events to export. Check your schedule.', 'error');
+        return;
+    }
+    
+    // Create and download the ICS file
+    const icsContent = ics.join('\r\n');
+    const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `MySchedule_${new Date().toISOString().split('T')[0]}.ics`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(link.href);
+    
+    showStatus(
+        `Calendar exported! ${eventCount} course(s) added.<br><br>` +
+        `The .ics file has been downloaded to your device.<br>` +
+        `🛈 You can import this file to Google Calendar, Apple Calendar, Outlook, or any calendar app that supports iCalendar (.ics) format.`,
+        'success'
+    );
+}
+
 
 function loadScript(src) {
     return new Promise((resolve, reject) => {
@@ -1525,7 +1704,7 @@ function showStatus(message, type) {
     statusDiv.innerHTML = `<div class="status ${type}">${message}</div>`;
     setTimeout(() => {
         statusDiv.innerHTML = '';
-    }, 4000);
+    }, 10000);
 }
 
 function clearStatus() {

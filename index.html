@@ -39,6 +39,14 @@
                 </div>
             </div>
             <div class="timetable-grid" id="timetableGrid"></div>
+
+            <!-- ICS Export Button -->
+            <div style="display: flex; justify-content: center; margin: 15px 0;">
+                <button class="btn-export" id="exportICSBtn">
+                    ➜] Download Calendar (.ics)
+                </button>
+            </div>
+            
             <p class="tip">
                 <strong>Note:</strong> This generator can make mistakes. Please verify your schedule against your COR.<br>
                 You can click any class to <strong>edit</strong>, use the <strong>+ Class</strong> button to add new classes, or <strong>delete</strong> incorrect ones by clicking the schedule.
@@ -339,6 +347,22 @@
                         <option value="custom">Custom size...</option>
                     </select>
                 </div>
+                <div class="form-group">
+                    <label>Color Theme</label>
+                    <select id="lockscreenTheme" style="width: 100%;">
+                        <option value="default" selected>Default (Cream & Blue)</option>
+                        <option value="ustp">USTP-inspired</option>
+                        <option value="dark">Dark Mode</option>
+                        <option value="midnight">Midnight</option>
+                        <option value="darkAcad">Dark Academia</option>
+                        <option value="matcha1">Matcha 1 (Performative Male)</option>
+                        <option value="matcha2">Matcha 2 (Estitik)</option>
+                        <option value="minimal">Minimal (Personal fav lol)</option>
+                        <option value="pastelGreen">Pastel Green</option>
+                        <option value="pastelPink">Pastel Pink</option>
+                        <option value="pastelBlue">Pastel Blue</option>
+                    </select>
+                </div>
                 <div id="lockscreenCustomContainer" style="display: none;">
                     <div class="form-row">
                         <div class="form-group">
@@ -352,8 +376,8 @@
                     </div>
                 </div>
                 <div class="form-group">
-                    <label>Padding <span id="paddingValue">10</span>%</label>
-                    <input type="range" id="paddingSlider" min="0" max="20" value="10" style="width: 100%;">
+                    <label>Padding <span id="paddingValue">5</span>%</label>
+                    <input type="range" id="paddingSlider" min="0" max="20" value="5" style="width: 100%;">
                 </div>
                 <p style="font-size: 0.7rem; color: #64748b; margin-top: 12px;">
                     The image will be centered with your chosen padding. Adjust if content gets cut off on your phone.

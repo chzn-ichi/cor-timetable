@@ -135,12 +135,12 @@ button {
 }
 
 .btn-lockscreen {
-    background: #20252a;
+    background: #1c1c1c;
     color: white;
 }
 
 .btn-lockscreen:hover {
-    background: #000000;
+    background: #20252a;
     transform: translateY(-1px);
 }
 
@@ -153,6 +153,26 @@ button {
     background: #053596;
     transform: translateY(-1px);
 }
+
+.btn-export {
+    background: #1c1c1c;
+    color: white;
+    border: none;
+    padding: 10px 32px;
+    border-radius: 40px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.75rem;
+    transition: all 0.2s ease;
+    font-family: inherit;
+}
+
+.btn-export:hover {
+    background: #20252a;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(14, 15, 14, 0.3);
+}
+
 
 /* TIMETABLE WRAPPER - FIXED */
 .timetable-wrapper {
@@ -289,14 +309,14 @@ button {
 .course-block .course-code {
     font-weight: 700;
     color: #1e40af;
-    font-size: clamp(0.5rem, 0.8vw, 0.7rem);
+    font-size: clamp(0.5rem, 0.9vw, 0.7rem);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 }
 
 .course-block .course-subject {
-    font-size: clamp(0.4rem, 0.6vw, 0.6rem);
+    font-size: clamp(0.4rem, 0.8vw, 0.6rem);
     color: #334155;
     white-space: nowrap;
     overflow: hidden;
@@ -304,12 +324,12 @@ button {
 }
 
 .course-block .course-time {
-    font-size: clamp(0.35rem, 0.5vw, 0.5rem);
+    font-size: clamp(0.35rem, 0.7vw, 0.5rem);
     color: #64748b;
 }
 
 .course-block .course-room {
-    font-size: clamp(0.3rem, 0.4vw, 0.45rem);
+    font-size: clamp(0.3rem, 0.7vw, 0.45rem);
     color: #f59e0b;
 }
 
@@ -757,4 +777,21 @@ input[type="range"]::-moz-range-thumb {
     .modal-body {
         padding: 20px;
     }
+}
+
+/* Theme selector styling */
+#lockscreenTheme {
+    width: 100%;
+    padding: 12px 14px;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    font-size: 0.9rem;
+    font-family: inherit;
+    background: white;
+    cursor: pointer;
+    appearance: auto;
+}
+
+#lockscreenTheme:hover {
+    border-color: #2563eb;
 }
