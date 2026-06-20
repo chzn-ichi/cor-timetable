@@ -18,7 +18,8 @@ A web-based tool that extracts course schedules from USTP COR PDFs and generates
 | **Overlapping Schedules** | Overlapping courses are displayed side by side with proper spacing |
 | **Lockscreen Wallpaper** | Generate a beautiful vertical schedule wallpaper for your phone |
 | **11 Color Themes** | Choose from Default, USTP-inspired, Dark Mode, Midnight, Dark Academia, Matcha, Minimal, Pastel Green/Pink/Blue, and more |
-| **Custom Sizes** | Choose from preset phone resolutions or enter custom dimensions |
+| **Custom Colors** | Create your own color scheme with real-time live preview |
+| **Custom Sizes** | Choose from 20+ preset phone resolutions or enter custom dimensions |
 | **Calendar Export** | Export your schedule as an .ics file for Google Calendar, Apple Calendar, or Outlook |
 | **Responsive Design** | Works seamlessly on desktop, tablet, and mobile devices |
 | **Privacy First** | All processing happens locally in your browser - your data never leaves your device |
@@ -39,4 +40,4 @@ A web-based tool that extracts course schedules from USTP COR PDFs and generates
 ```bash
 git clone https://github.com/chzn-ichi/cor-timetable.git
 cd cor-timetable
-# Open index.html in your browser
+# Open index.html in your browser #
