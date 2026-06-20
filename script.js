@@ -77,7 +77,7 @@ const LOCKSREEN_THEMES = {
     },
     matcha2: {
         name: 'Matcha 2 (Estitik)',
-        background: '#ddbea9',
+        background: '#f1dac3',
         card: '#6b705c',
         title: '#6b705c',
         dayName: '#ddbea9',
@@ -149,6 +149,40 @@ document.addEventListener('DOMContentLoaded', () => {
     if (generateLockscreenBtn) generateLockscreenBtn.onclick = generateLockscreenImage;
     if (lockscreenCloseBtn) lockscreenCloseBtn.onclick = closeLockscreenModal;
 
+
+    const themeSelect = document.getElementById('lockscreenTheme');
+    const customColorsContainer = document.getElementById('customColorsContainer');
+
+    if (themeSelect) {
+        themeSelect.addEventListener('change', function() {
+            // Show/hide custom colors
+            if (this.value === 'custom') {
+                customColorsContainer.style.display = 'block';
+                
+                // NEW: Show preview with current custom colors immediately
+                const theme = {
+                    background: document.getElementById('customBg').value,
+                    card: document.getElementById('customCard').value,
+                    title: document.getElementById('customTitle').value,
+                    dayName: document.getElementById('customDayName').value,
+                    text: document.getElementById('customText').value,
+                    time: document.getElementById('customTime').value,
+                    room: document.getElementById('customRoom').value,
+                    border: 'rgba(0,0,0,0.1)'
+                };
+                previewLockscreen(theme, 'Custom Colors');
+                
+            } else {
+                customColorsContainer.style.display = 'none';
+                // Auto-preview the selected theme
+                const theme = LOCKSREEN_THEMES[this.value];
+                const themeName = this.options[this.selectedIndex].text;
+                previewLockscreen(theme, themeName);
+            }
+        });
+    }
+
+
     // Toggle custom size inputs in lockscreen modal
     const lockscreenSizeSelect = document.getElementById('lockscreenSize');
     const lockscreenCustomContainer = document.getElementById('lockscreenCustomContainer');
@@ -157,6 +191,28 @@ document.addEventListener('DOMContentLoaded', () => {
             lockscreenCustomContainer.style.display = lockscreenSizeSelect.value === 'custom' ? 'block' : 'none';
         });
     }
+
+
+    // Auto-preview when custom color changes
+    document.querySelectorAll('#customBg, #customCard, #customTitle, #customDayName, #customText, #customTime, #customRoom').forEach(input => {
+        input.addEventListener('input', function() {
+            // Only update if custom theme is selected
+            const themeSelect = document.getElementById('lockscreenTheme');
+            if (themeSelect && themeSelect.value === 'custom') {
+                const theme = {
+                    background: document.getElementById('customBg').value,
+                    card: document.getElementById('customCard').value,
+                    title: document.getElementById('customTitle').value,
+                    dayName: document.getElementById('customDayName').value,
+                    text: document.getElementById('customText').value,
+                    time: document.getElementById('customTime').value,
+                    room: document.getElementById('customRoom').value,
+                    border: 'rgba(0,0,0,0.1)'
+                };
+                previewLockscreen(theme, 'Custom Colors');
+            }
+        });
+    });
 
     // Padding slider
     const paddingSlider = document.getElementById('paddingSlider');
@@ -833,25 +889,25 @@ function positionEvents(dayEvents) {
                 el.style.width = eventWidth + 'px';
                 el.style.height = duration + 'px';
                 el.style.minHeight = '30px';
-                el.style.background = '#c8e0ff';
+                el.style.background = '#A9C7EB';
                 el.style.borderRadius = '6px';
-                el.style.padding = '4px 6px';
-                el.style.border = '1px solid rgba(30, 64, 175, 0.15)';
+                el.style.padding = '5px 6px';
+                el.style.border = '1px solid #8EB2DD';  
                 el.style.cursor = 'pointer';
                 el.style.overflow = 'hidden';
                 el.style.boxSizing = 'border-box';
                 el.style.display = 'flex';
                 el.style.flexDirection = 'column';
                 el.style.pointerEvents = 'auto';
-                
+
                 // Build content
-                let content = `<div class="course-code" style="font-weight: 700; color: #1e40af; font-size: clamp(0.4rem, 0.9vw, 0.7rem); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(event.course.code)}</div>`;
+                let content = `<div class="course-code" style="font-weight: 700; color: #173A63; font-size: clamp(0.4rem, 0.9vw, 0.7rem); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(event.course.code)}</div>`;
                 if (event.course.subject && event.course.subject !== event.course.code) {
-                    content += `<div class="course-subject" style="font-size: clamp(0.35rem, 0.8vw, 0.6rem); color: #334155; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(event.course.subject.substring(0, 15))}</div>`;
+                    content += `<div class="course-subject" style="font-size: clamp(0.35rem, 0.8vw, 0.6rem); color: #4F6B8A; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(event.course.subject.substring(0, 15))}</div>`;
                 }
-                content += `<div class="course-time" style="font-size: clamp(0.3rem, 0.7vw, 0.5rem); color: #64748b;">${escapeHtml(event.startTime)}-${escapeHtml(event.endTime)}</div>`;
+                content += `<div class="course-time" style="font-size: clamp(0.3rem, 0.7vw, 0.5rem); color: #294C72; opacity: 0.7;">${escapeHtml(event.startTime)}-${escapeHtml(event.endTime)}</div>`;
                 if (event.meeting.room) {
-                    content += `<div class="course-room" style="font-size: clamp(0.25rem, 0.7vw, 0.5rem); color: #f59e0b;">${escapeHtml(event.meeting.room.substring(0, 8))}</div>`;
+                    content += `<div class="course-room" style="font-size: clamp(0.25rem, 0.7vw, 0.5rem); color: #294C72; opacity: 0.8; font-weight: 500;">${escapeHtml(event.meeting.room.substring(0, 8))}</div>`;
                 }
                 el.innerHTML = content;
                 
@@ -1299,6 +1355,40 @@ function openLockscreenModal() {
     if (themeSelect) {
         const savedTheme = localStorage.getItem('lockscreenTheme') || 'default';
         themeSelect.value = savedTheme;
+        
+        // Load saved custom colors if theme is 'custom'
+        if (savedTheme === 'custom') {
+            document.getElementById('customColorsContainer').style.display = 'block';
+            const savedColors = localStorage.getItem('customColors');
+            if (savedColors) {
+                const colors = JSON.parse(savedColors);
+                document.getElementById('customBg').value = colors.background || '#faf7f0';
+                document.getElementById('customCard').value = colors.card || '#e8f0fe';
+                document.getElementById('customTitle').value = colors.title || '#2c3e4e';
+                document.getElementById('customDayName').value = colors.dayName || '#2c3e4e';
+                document.getElementById('customText').value = colors.text || '#1a2a3a';
+                document.getElementById('customTime').value = colors.time || '#6b8a9e';
+                document.getElementById('customRoom').value = colors.room || '#5a7a8e';
+            }
+            
+            // NEW: Show preview with current custom colors
+            const theme = {
+                background: document.getElementById('customBg').value,
+                card: document.getElementById('customCard').value,
+                title: document.getElementById('customTitle').value,
+                dayName: document.getElementById('customDayName').value,
+                text: document.getElementById('customText').value,
+                time: document.getElementById('customTime').value,
+                room: document.getElementById('customRoom').value,
+                border: 'rgba(0,0,0,0.1)'
+            };
+            previewLockscreen(theme, 'Custom Colors');
+        } else {
+            // Auto-preview the saved theme
+            const theme = LOCKSREEN_THEMES[savedTheme] || LOCKSREEN_THEMES.default;
+            const themeName = themeSelect.options[themeSelect.selectedIndex].text;
+            previewLockscreen(theme, themeName);
+        }
     }
     
     document.getElementById('lockscreenModal').style.display = 'block';
@@ -1337,10 +1427,28 @@ async function generateLockscreenImage() {
     
     // Get selected theme
     const themeSelect = document.getElementById('lockscreenTheme');
-    const themeKey = themeSelect ? themeSelect.value : 'default';
-    const theme = LOCKSREEN_THEMES[themeKey] || LOCKSREEN_THEMES.default;
-    
-    // Save theme preference
+    let themeKey = themeSelect ? themeSelect.value : 'default';
+    let theme;
+
+    if (themeKey === 'custom') {
+        // Build custom theme from color pickers
+        theme = {
+            background: document.getElementById('customBg').value,
+            card: document.getElementById('customCard').value,
+            title: document.getElementById('customTitle').value,
+            dayName: document.getElementById('customDayName').value,
+            text: document.getElementById('customText').value,
+            time: document.getElementById('customTime').value,
+            room: document.getElementById('customRoom').value,
+            border: 'rgba(0,0,0,0.1)'
+        };
+        // Save custom colors
+        localStorage.setItem('customColors', JSON.stringify(theme));
+    } else {
+        theme = LOCKSREEN_THEMES[themeKey] || LOCKSREEN_THEMES.default;
+    }
+
+    // Save theme preference (ONCE)
     localStorage.setItem('lockscreenTheme', themeKey);
     
     const dayMap = { 'M': 'Monday', 'T': 'Tuesday', 'W': 'Wednesday', 'Th': 'Thursday', 'F': 'Friday', 'S': 'Saturday' };
@@ -1544,6 +1652,213 @@ async function generateLockscreenImage() {
     }, 300);
 }
 
+function previewLockscreen(theme, themeName) {
+    if (currentCourses.length === 0) {
+        showStatus('No schedule to preview. Upload your COR first.', 'error');
+        return;
+    }
+    
+    const dayMap = { 'M': 'Monday', 'T': 'Tuesday', 'W': 'Wednesday', 'Th': 'Thursday', 'F': 'Friday', 'S': 'Saturday' };
+    const fullDayMap = { 'Monday': 'MON', 'Tuesday': 'TUE', 'Wednesday': 'WED', 'Thursday': 'THU', 'Friday': 'FRI', 'Saturday': 'SAT' };
+    
+    // Group courses by day using meetings
+    const scheduleByDay = {};
+    const daysOrder = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    daysOrder.forEach(day => { scheduleByDay[day] = []; });
+    
+    for (const course of currentCourses) {
+        if (!course.meetings || course.meetings.length === 0) continue;
+        for (const meeting of course.meetings) {
+            const fullDay = dayMap[meeting.day];
+            if (!fullDay) continue;
+            scheduleByDay[fullDay].push({
+                code: course.code,
+                name: course.subject || course.code,
+                startTime: meeting.startTime,
+                endTime: meeting.endTime,
+                room: meeting.room
+            });
+        }
+    }
+    
+    // Sort classes by time for each day
+    for (const day in scheduleByDay) {
+        scheduleByDay[day].sort((a, b) => timeToFloat(a.startTime) - timeToFloat(b.startTime));
+    }
+    
+    const daysWithClasses = daysOrder.filter(day => scheduleByDay[day].length > 0);
+    
+    if (daysWithClasses.length === 0) {
+        showStatus('No classes found in schedule.', 'error');
+        return;
+    }
+    
+    // Build preview HTML with theme colors
+    const previewWidth = 540;  // Half of 1080 for preview
+    const previewHeight = 960; // Half of 1920 for preview
+    
+    let html = `<div class="lockscreen-preview" id="lockscreenPreview" style="
+        width: ${previewWidth}px;
+        max-width: 100%;
+        height: auto;
+        aspect-ratio: 9 / 16;
+        background: ${theme.background};
+        padding: 30px 20px 20px 20px;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        box-sizing: border-box;
+        display: flex;
+        flex-direction: column;
+        border-radius: 16px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+        margin: 0 auto;
+        overflow: hidden;
+        border: 2px solid var(--border);
+    ">
+        <div class="lockscreen-title" style="text-align: center; margin-bottom: 16px; flex-shrink: 0;">
+            <h1 style="font-family: 'Playfair Display', 'Georgia', serif; font-size: 2.5rem; font-weight: 600; color: ${theme.title}; letter-spacing: -0.5px; margin: 0;">Class Schedule</h1>
+        </div>
+        <div class="lockscreen-schedule" style="display: flex; flex-direction: column; gap: 16px; flex: 1; overflow-y: auto; padding-right: 4px;">
+    `;
+    
+    for (const day of daysWithClasses) {
+        const classes = scheduleByDay[day];
+        const shortDay = fullDayMap[day];
+        
+        html += `<div class="day-card" style="
+            background: ${theme.card};
+            border-radius: 16px;
+            padding: 16px 14px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+            flex-shrink: 0;
+        ">
+            <div class="day-header" style="
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                margin-bottom: 8px;
+                padding-bottom: 6px;
+                border-bottom: 2px solid ${theme.border};
+            ">
+                <span class="day-name" style="font-size: 1.2rem; font-weight: 700; color: ${theme.dayName}; letter-spacing: 0.5px;">${shortDay}</span>
+            </div>
+            <div class="class-list" style="display: flex; flex-direction: column; gap: 8px;">
+        `;
+        
+        for (const cls of classes) {
+            const timeRange = `${cls.startTime} – ${cls.endTime}`;
+            html += `
+                <div class="class-item" style="
+                    display: flex;
+                    align-items: baseline;
+                    gap: 12px;
+                    padding: 4px 0;
+                    flex-wrap: nowrap;
+                ">
+                    <div class="class-time" style="
+                        min-width: 100px;
+                        font-size: 0.75rem;
+                        font-weight: 500;
+                        color: ${theme.time};
+                        font-family: 'SF Mono', 'Menlo', monospace;
+                        letter-spacing: -0.3px;
+                        flex-shrink: 0;
+                    ">${escapeHtml(timeRange)}</div>
+                    <div class="class-name" style="
+                        flex: 1;
+                        font-size: 0.85rem;
+                        font-weight: 600;
+                        color: ${theme.text};
+                        letter-spacing: -0.3px;
+                        white-space: nowrap;
+                        overflow: hidden;
+                        text-overflow: ellipsis;
+                    ">${escapeHtml(cls.name.substring(0, 30))}</div>
+                    <div class="class-room" style="
+                        font-size: 0.7rem;
+                        font-weight: 500;
+                        color: ${theme.room};
+                        min-width: 70px;
+                        text-align: right;
+                        flex-shrink: 0;
+                    ">${escapeHtml(cls.room || 'TBA')}</div>
+                </div>
+            `;
+        }
+        html += `</div></div>`;
+    }
+    
+        html += `
+            </div>
+            <div style="text-align: center; margin-top: 12px; color: ${theme.room}; opacity: 0.5; font-size: 0.5rem; flex-shrink: 0;">
+                ${themeName || 'Preview'}
+            </div>
+        </div>`;
+    
+    // Find or create preview container
+    let previewContainer = document.getElementById('previewContainer');
+    if (!previewContainer) {
+        previewContainer = document.createElement('div');
+        previewContainer.id = 'previewContainer';
+        previewContainer.style.cssText = `
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            padding: 20px;
+            margin-top: 16px;
+            background: #f8f9fc;
+            border-radius: 12px;
+            border: 2px dashed #e8ecf1;
+            width: 100%;
+            box-sizing: border-box;
+            max-height: 500px;
+            overflow-y: auto;
+            scrollbar-width: thin;
+            scrollbar-color: #afd4fd #f1f1f1;
+        `;
+        
+        // Insert it after the custom colors container
+        const customColorsContainer = document.getElementById('customColorsContainer');
+        if (customColorsContainer) {
+            customColorsContainer.parentNode.insertBefore(previewContainer, customColorsContainer.nextSibling);
+        }
+    }
+    
+    // Show preview with proper alignment
+    previewContainer.innerHTML = html;
+    previewContainer.style.display = 'flex';
+    previewContainer.style.alignItems = 'flex-start';
+    previewContainer.style.justifyContent = 'center';
+    
+    // Force scrollbar styles by injecting a style element
+    const styleId = 'previewScrollbarStyles';
+    let styleEl = document.getElementById(styleId);
+    if (!styleEl) {
+        styleEl = document.createElement('style');
+        styleEl.id = styleId;
+        styleEl.textContent = `
+            #previewContainer::-webkit-scrollbar {
+                width: 6px !important;
+                height: 6px !important;
+            }
+            #previewContainer::-webkit-scrollbar-track {
+                background: #f1f1f1 !important;
+                border-radius: 10px !important;
+            }
+            #previewContainer::-webkit-scrollbar-thumb {
+                background: #b21515 !important;
+                border-radius: 10px !important;
+            }
+            #previewContainer::-webkit-scrollbar-thumb:hover {
+                background: #9f0b1c !important;
+            }
+        `;
+        document.head.appendChild(styleEl);
+    }
+    
+    // Show a status message
+    showStatus(`Preview: ${themeName || 'Custom Colors'}`, 'success');
+}
+
 
 function exportICS() {
     if (currentCourses.length === 0) {
@@ -1704,7 +2019,7 @@ function showStatus(message, type) {
     statusDiv.innerHTML = `<div class="status ${type}">${message}</div>`;
     setTimeout(() => {
         statusDiv.innerHTML = '';
-    }, 10000);
+    }, 6000);
 }
 
 function clearStatus() {

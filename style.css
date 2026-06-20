@@ -1,3 +1,20 @@
+/* ========== ROOT VARIABLES ========== */
+:root {
+    --primary: #2f2a60;
+    --primary-light: #4a4480;
+    --primary-dark: #1f1a40;
+    --secondary: #afd4fd;
+    --secondary-hover: #8fc0f5;
+    --white: #ffffff;
+    --bg: #f8f9fc;
+    --text-primary: #2f2a60;
+    --text-secondary: #858585;
+    --text-light: #b0b0b0;
+    --border: #e8ecf1;
+    --shadow: 0 1px 4px rgba(47, 42, 96, 0.06);
+    --radius: 12px;
+}
+
 * {
     margin: 0;
     padding: 0;
@@ -6,7 +23,7 @@
 
 body {
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-    background: #f0f2f5;
+    background: var(--bg);
     min-height: 100vh;
     padding: 32px 100px;
 }
@@ -16,7 +33,7 @@ body {
     margin: 0 auto;
 }
 
-/* Header */
+/* ========== HEADER ========== */
 .header {
     text-align: center;
     margin-bottom: 32px;
@@ -25,23 +42,83 @@ body {
 .header h1 {
     font-size: 2rem;
     font-weight: 700;
-    color: #1a1a2e;
+    color: var(--primary);
     margin-bottom: 8px;
 }
 
 .header p {
-    color: #64748b;
+    color: var(--text-secondary);
     font-size: 0.95rem;
 }
 
-/* Upload Card */
+/* ========== 3-STEP GUIDE ========== */
+.step-guide {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    background: var(--white);
+    border-radius: 16px;
+    padding: 20px 30px;
+    margin-bottom: 24px;
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow);
+    flex-wrap: wrap;
+}
+
+.step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    min-width: 80px;
+    position: relative;
+}
+
+.step-number {
+    background: var(--primary);
+    color: #ffffff;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.7rem;
+    font-weight: 700;
+    margin-bottom: 4px;
+}
+
+.step-icon {
+    font-size: 1.8rem;
+    line-height: 1.2;
+}
+
+.step-text {
+    font-weight: 600;
+    font-size: 0.75rem;
+    color: var(--text-primary);
+}
+
+.step-desc {
+    font-size: 0.6rem;
+    color: var(--text-secondary);
+}
+
+.step-arrow {
+    font-size: 1.2rem;
+    color: var(--secondary);
+    font-weight: 300;
+}
+
+/* ========== UPLOAD CARD ========== */
 .upload-card {
-    background: white;
+    background: var(--white);
     border-radius: 24px;
     padding: 32px;
     margin-bottom: 32px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.05), 0 1px 2px rgba(0,0,0,0.03);
-    border: 1px solid #e2e8f0;
+    box-shadow: var(--shadow);
+    border: 1px solid var(--border);
 }
 
 .upload-area {
@@ -55,8 +132,8 @@ body {
 }
 
 .upload-area:hover {
-    border-color: #2563eb;
-    background: #eff6ff;
+    border-color: var(--secondary);
+    background: #f0f7fe;
 }
 
 .upload-area input {
@@ -69,23 +146,90 @@ body {
 }
 
 .upload-area p {
-    color: #1e293b;
+    color: var(--text-primary);
     font-weight: 500;
     margin-bottom: 8px;
 }
 
 .upload-area small {
-    color: #94a3b8;
+    color: var(--text-secondary);
     font-size: 0.8rem;
 }
 
-/* Timetable Container */
+/* ========== TOOLTIPS ========== */
+.info-tip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #e8f0fe;
+    color: var(--primary);
+    font-size: 0.6rem;
+    font-weight: 700;
+    cursor: help;
+    margin-left: 4px;
+    position: relative;
+    transition: background 0.2s ease;
+    vertical-align: middle;
+    user-select: none;
+}
+
+.info-tip:hover {
+    background: #d4e4ff;
+}
+
+.info-tip::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: calc(100% + 12px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--primary);
+    color: var(--white);
+    padding: 8px 14px;
+    border-radius: 8px;
+    font-size: 0.7rem;
+    font-weight: 400;
+    white-space: nowrap;
+    max-width: 280px;
+    white-space: normal;
+    text-align: center;
+    line-height: 1.4;
+    z-index: 100;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+    font-family: 'Inter', sans-serif;
+}
+
+.info-tip::before {
+    content: '';
+    position: absolute;
+    bottom: calc(100% + 6px);
+    left: 50%;
+    transform: translateX(-50%);
+    border: 6px solid transparent;
+    border-top-color: var(--primary);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+}
+
+.info-tip:hover::after,
+.info-tip:hover::before {
+    opacity: 1;
+}
+
+/* ========== TIMETABLE CONTAINER ========== */
 .timetable-container {
-    background: white;
+    background: var(--white);
     border-radius: 24px;
     padding: 24px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.05), 0 1px 2px rgba(0,0,0,0.03);
-    border: 1px solid #e2e8f0;
+    box-shadow: var(--shadow);
+    border: 1px solid var(--border);
     display: none;
 }
 
@@ -97,15 +241,16 @@ body {
     flex-wrap: wrap;
     gap: 16px;
     padding-bottom: 16px;
-    border-bottom: 1px solid #e2e8f0;
+    border-bottom: 1px solid var(--border);
 }
 
 .timetable-header h2 {
     font-size: 1.25rem;
     font-weight: 600;
-    color: #1a1a2e;
+    color: var(--primary);
 }
 
+/* ========== BUTTON GROUP ========== */
 .btn-group {
     display: flex;
     gap: 12px;
@@ -117,68 +262,198 @@ button {
     border: none;
     border-radius: 40px;
     cursor: pointer;
-    font-weight: 450;
+    font-weight: 500;
     font-size: 0.75rem;
     transition: all 0.2s ease;
     font-family: inherit;
 }
 
-.btn-reset {
-    background: #c7defe;
-    color: #068cd9;
-    border: 1px solid #8acffd;
-}
-
-.btn-reset:hover {
-    background: #8acffd;
-    transform: translateY(-1px);
-}
-
 .btn-lockscreen {
-    background: #1c1c1c;
-    color: white;
+    background: #1a1e39;
+    color: #ffffff;
 }
 
 .btn-lockscreen:hover {
-    background: #20252a;
+    background: #30324f;
     transform: translateY(-1px);
 }
 
 .btn-add {
-    background: #1067b9;
-    color: white;
+    background: var(--primary);
+    color: var(--white);
 }
 
 .btn-add:hover {
-    background: #053596;
+    background: var(--primary-light);
     transform: translateY(-1px);
 }
 
+.btn-reset {
+    background: transparent;
+    color: var(--text-secondary);
+    border: 1px solid var(--border);
+}
+
+.btn-reset:hover {
+    background: var(--bg);
+}
+
 .btn-export {
-    background: #1c1c1c;
-    color: white;
-    border: none;
-    padding: 10px 32px;
-    border-radius: 40px;
-    cursor: pointer;
-    font-weight: 600;
-    font-size: 0.75rem;
-    transition: all 0.2s ease;
-    font-family: inherit;
+    background: #1a1e39;
+    color: #ffffff;
 }
 
 .btn-export:hover {
-    background: #20252a;
+    background: #30324f;
     transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(14, 15, 14, 0.3);
+    box-shadow: 0 4px 12px rgba(48, 50, 80, 0.3);
 }
 
+.btn-export .info-tip {
+    background: #1a1e39;
+    color: #ffffff;
+    width: 16px;
+    height: 16px;
+    font-size: 0.7rem;
+}
 
-/* TIMETABLE WRAPPER - FIXED */
+.btn-export .info-tip:hover {
+    background: rgba(255, 255, 255, 0.35);
+}
+
+.btn-export .info-tip::after {
+    background: #303250;
+}
+
+.btn-export .info-tip::before {
+    border-top-color: #303250;
+}
+
+/* ========== CUSTOM COLORS CONTAINER ========== */
+#customColorsContainer {
+    background: #f8fafc;
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 16px;
+    border: 1px solid var(--border);
+}
+
+#customColorsContainer .form-group label {
+    font-size: 0.65rem;
+    text-transform: none;
+    letter-spacing: 0;
+    color: #475569;
+    font-weight: 500;
+}
+
+#customColorsContainer input[type="color"] {
+    width: 100%;
+    height: 40px;
+    padding: 2px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    cursor: pointer;
+    background: var(--white);
+}
+
+#customColorsContainer input[type="color"]:hover {
+    border-color: var(--secondary);
+}
+
+#previewBtn {
+    margin-top: 12px;
+    padding: 10px 20px;
+    background: var(--secondary);
+    color: var(--primary);
+    border: none;
+    border-radius: 40px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.8rem;
+    font-family: inherit;
+    width: 100%;
+    transition: all 0.2s ease;
+}
+
+#previewBtn:hover {
+    background: var(--secondary-hover);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(253, 164, 20, 0.3);
+}
+
+/* ========== LOCKSCREEN PREVIEW ========== */
+#previewContainer {
+    display: none;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+    margin-top: 16px;
+    background: #f8f9fc;
+    border-radius: 12px;
+    border: 2px dashed #e8ecf1;
+    width: 100%;
+    box-sizing: border-box;
+    max-height: 600px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+}
+
+/* Scrollbar for the parent column - WebKit (Chrome, Edge, Safari) */
+#previewColumn::-webkit-scrollbar {
+    width: 6px !important;
+    height: 6px !important;
+}
+
+#previewColumn::-webkit-scrollbar-track {
+    background: #f1f1f1 !important;
+    border-radius: 10px !important;
+}
+
+#previewColumn::-webkit-scrollbar-thumb {
+    background: #53669b !important;
+    border-radius: 10px !important;
+}
+
+#previewColumn::-webkit-scrollbar-thumb:hover {
+    background: #354163 !important;
+}
+
+/* Firefox - separate property */
+#previewColumn {
+    scrollbar-color: #53669b #f1f1f1 !important;
+    scrollbar-width: thin !important;
+}
+
+/* Also keep the preview container styles */
+.lockscreen-preview {
+    transition: all 0.3s ease;
+}
+
+#closePreviewBtn {
+    display: none;
+    margin-top: 8px;
+    padding: 6px 16px;
+    background: #ef4444;
+    color: white;
+    border: none;
+    border-radius: 40px;
+    cursor: pointer;
+    font-weight: 500;
+    font-size: 0.7rem;
+    font-family: inherit;
+    transition: all 0.2s ease;
+}
+
+#closePreviewBtn:hover {
+    background: #dc2626;
+    transform: scale(1.02);
+}
+
+/* ========== TIMETABLE WRAPPER ========== */
 .timetable-wrapper {
     position: relative;
     border-radius: 16px;
-    border: 1px solid #e2e8f0;
+    border: 1px solid var(--border);
     overflow: auto;
     max-height: 70vh;
     width: 100%;
@@ -197,24 +472,30 @@ button {
 }
 
 .timetable-wrapper::-webkit-scrollbar-thumb {
-    background: #cbd5e1;
+    background: #53669b;
     border-radius: 10px;
 }
 
 .timetable-wrapper::-webkit-scrollbar-thumb:hover {
-    background: #94a3b8;
+    background: #354163;
 }
 
 .timetable-wrapper::-webkit-scrollbar-corner {
     background: #f1f1f1;
 }
 
-/* TIMETABLE - FIXED */
+/* Firefox scrollbar */
+.timetable-wrapper {
+    scrollbar-color: #53669b #f1f1f1;
+    scrollbar-width: thin;
+}
+
+/* ========== TIMETABLE ========== */
 .timetable {
     width: 100%;
     min-width: 800px;
     border-collapse: collapse;
-    background: white;
+    background: var(--white);
     font-size: 0.8rem;
     table-layout: fixed;
 }
@@ -223,12 +504,12 @@ button {
 .timetable thead th {
     position: sticky;
     top: 0;
-    background: #f8fafc;
-    color: #1e293b;
+    background: #f2f4f5;
+    color: var(--primary);
     font-weight: 600;
     font-size: 0.75rem;
     padding: 12px 8px;
-    border: 1px solid #e2e8f0;
+    border: 1px solid rgba(47, 42, 96, 0.08);
     z-index: 20;
     text-align: center;
 }
@@ -244,18 +525,18 @@ button {
 .timetable td:first-child {
     position: sticky;
     left: 0;
-    background: #f8fafc;
+    background: #f2f4f5;
+    color: var(--primary);
     z-index: 10;
     min-width: 80px;
     width: 80px;
     text-align: center;
     font-weight: 600;
-    color: #475569;
     font-size: 0.7rem;
-    border: 1px solid #e2e8f0;
+    border: 1px solid rgba(47, 42, 96, 0.08);
 }
 
-/* Day columns - fixed width distribution */
+/* Day columns */
 .timetable th:not(:first-child),
 .timetable td:not(:first-child) {
     width: calc((100% - 80px) / 6);
@@ -265,7 +546,7 @@ button {
 
 .timetable th,
 .timetable td {
-    border: 1px solid #e2e8f0;
+    border: 1px solid var(--border);
     padding: 2px;
     vertical-align: middle;
     position: relative;
@@ -276,7 +557,7 @@ button {
 
 /* Empty cell styling */
 .timetable td.empty-cell {
-    background-color: #ffffff;
+    background-color: var(--white);
     height: 70px;
 }
 
@@ -284,96 +565,22 @@ button {
     height: 70px;
 }
 
-
-/* Course blocks inside table cells */
-.course-block {
-    background: #c8e0ff;
-    border-radius: 6px;
-    padding: 4px 6px;
-    height: 100%;
-    min-height: 50px;
-    display: flex;
-    flex-direction: column;
-    border: 1px solid rgba(30, 64, 175, 0.15);
-    cursor: pointer;
-    overflow: hidden;
-    transition: all 0.15s ease;
-}
-
-.course-block:hover {
-    background: #b0caec;
-    transform: scale(1.02);
-    box-shadow: 0 2px 8px rgba(0,0,0,0.12);
-}
-
-.course-block .course-code {
-    font-weight: 700;
-    color: #1e40af;
-    font-size: clamp(0.5rem, 0.9vw, 0.7rem);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.course-block .course-subject {
-    font-size: clamp(0.4rem, 0.8vw, 0.6rem);
-    color: #334155;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.course-block .course-time {
-    font-size: clamp(0.35rem, 0.7vw, 0.5rem);
-    color: #64748b;
-}
-
-.course-block .course-room {
-    font-size: clamp(0.3rem, 0.7vw, 0.45rem);
-    color: #f59e0b;
-}
+/* ========== COURSE BLOCKS in the script.js ========== */
 
 
-@media (max-width: 768px) {
-    .timetable td {
-        height: 60px;
-        min-height: 60px;
-        max-height: 60px;
-        padding: 2px;
-    }
-    .course-block {
-        min-height: 40px;
-        padding: 3px 4px;
-    }
-}
-
-@media (max-width: 480px) {
-    .timetable td {
-        height: 50px;
-        min-height: 50px;
-        max-height: 50px;
-        padding: 1px;
-    }
-    .course-block {
-        min-height: 30px;
-        padding: 2px 3px;
-        border-radius: 4px;
-    }
-}
-
-/* Tip */
+/* ========== TIP ========== */
 .tip {
     margin-top: 20px;
     padding: 12px 16px;
-    background: #ebf6ff;
+    background: #f5f6f8;
     border-radius: 12px;
-    color: #0e4392;
+    color: var(--primary);
     font-size: 0.75rem;
     text-align: center;
-    border: 1px solid #8ac9fd;
+    border: 1px solid var(--border);
 }
 
-/* Status Messages */
+/* ========== STATUS MESSAGES ========== */
 .status {
     margin-top: 20px;
     padding: 12px 20px;
@@ -396,20 +603,20 @@ button {
     border: 1px solid #fecaca;
 }
 
-/* Loading */
+/* ========== LOADING ========== */
 .loading {
     display: none;
     text-align: center;
     padding: 40px;
-    background: white;
+    background: var(--white);
     border-radius: 24px;
     margin-top: 20px;
-    border: 1px solid #e2e8f0;
+    border: 1px solid var(--border);
 }
 
 .spinner {
-    border: 3px solid #e2e8f0;
-    border-top: 3px solid #2563eb;
+    border: 3px solid var(--border);
+    border-top: 3px solid var(--secondary);
     border-radius: 50%;
     width: 40px;
     height: 40px;
@@ -418,7 +625,7 @@ button {
 }
 
 .loading p {
-    color: #64748b;
+    color: var(--text-secondary);
     font-size: 0.85rem;
 }
 
@@ -427,7 +634,7 @@ button {
     100% { transform: rotate(360deg); }
 }
 
-/* Range Slider */
+/* ========== RANGE SLIDER ========== */
 input[type="range"] {
     width: 100%;
     margin: 0;
@@ -438,7 +645,7 @@ input[type="range"] {
 input[type="range"]::-webkit-slider-runnable-track {
     width: 100%;
     height: 6px;
-    background: #e2e8f0;
+    background: var(--border);
     border-radius: 10px;
 }
 
@@ -447,7 +654,7 @@ input[type="range"]::-webkit-slider-thumb {
     height: 16px;
     width: 16px;
     border-radius: 50%;
-    background: #2563eb;
+    background: var(--secondary);
     margin-top: -5px;
     cursor: pointer;
     box-shadow: 0 1px 3px rgba(0,0,0,0.2);
@@ -456,7 +663,7 @@ input[type="range"]::-webkit-slider-thumb {
 input[type="range"]::-moz-range-track {
     width: 100%;
     height: 6px;
-    background: #e2e8f0;
+    background: var(--border);
     border-radius: 10px;
 }
 
@@ -464,14 +671,12 @@ input[type="range"]::-moz-range-thumb {
     height: 16px;
     width: 16px;
     border-radius: 50%;
-    background: #2563eb;
+    background: var(--secondary);
     border: none;
     cursor: pointer;
 }
 
-
-
-/* Modal Styles */
+/* ========== MODAL STYLES ========== */
 .modal {
     display: none;
     position: fixed;
@@ -499,7 +704,7 @@ input[type="range"]::-moz-range-thumb {
 }
 
 .modal-content {
-    background: white;
+    background: var(--white);
     margin: 5% auto;
     width: 90%;
     max-width: 550px;
@@ -524,13 +729,13 @@ input[type="range"]::-moz-range-thumb {
     justify-content: space-between;
     align-items: center;
     padding: 20px 24px;
-    border-bottom: 1px solid #e2e8f0;
+    border-bottom: 1px solid var(--border);
 }
 
 .modal-header h3 {
     font-size: 1.25rem;
     font-weight: 600;
-    color: #1a1a2e;
+    color: var(--primary);
     margin: 0;
 }
 
@@ -559,7 +764,7 @@ input[type="range"]::-moz-range-thumb {
     display: block;
     font-size: 0.8rem;
     font-weight: 600;
-    color: #334155;
+    color: var(--primary);
     margin-bottom: 8px;
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -569,12 +774,19 @@ input[type="range"]::-moz-range-thumb {
 .form-group select {
     width: 100%;
     padding: 12px 14px;
-    border: 1px solid #e2e8f0;
+    border: 1px solid var(--border);
     border-radius: 12px;
     font-size: 0.9rem;
     font-family: inherit;
     transition: all 0.2s;
-    background: white;
+    background: var(--white);
+}
+
+.form-group input:focus,
+.form-group select:focus {
+    border-color: var(--secondary);
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(253, 164, 20, 0.15);
 }
 
 .form-row {
@@ -597,7 +809,7 @@ input[type="range"]::-moz-range-thumb {
     justify-content: flex-end;
     gap: 12px;
     padding: 20px 24px;
-    border-top: 1px solid #e2e8f0;
+    border-top: 1px solid var(--border);
 }
 
 .modal-btn {
@@ -621,19 +833,19 @@ input[type="range"]::-moz-range-thumb {
 }
 
 .save-btn {
-    background: #2563eb;
-    color: white;
+    background: var(--secondary);
+    color: var(--primary);
 }
 
 .save-btn:hover {
-    background: #1d4ed8;
+    background: var(--secondary-hover);
     transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+    box-shadow: 0 4px 12px rgba(253, 164, 20, 0.3);
 }
 
 .delete-btn {
     background: #ef4444;
-    color: white;
+    color: var(--white);
 }
 
 .delete-btn:hover {
@@ -659,43 +871,103 @@ input[type="range"]::-moz-range-thumb {
 #deleteConfirmModal .modal-body {
     font-size: 0.95rem;
     line-height: 1.5;
-    color: #334155;
+    color: var(--text-primary);
     text-align: center;
     padding: 24px;
 }
 
-/* Responsive */
+/* ========== THEME SELECTOR ========== */
+#lockscreenTheme {
+    width: 100%;
+    padding: 12px 14px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    font-size: 0.9rem;
+    font-family: inherit;
+    background: var(--white);
+    cursor: pointer;
+    appearance: auto;
+}
+
+#lockscreenTheme:hover {
+    border-color: var(--secondary);
+}
+
+/* ========== RESPONSIVE ========== */
+
+/* Tablets & small laptops */
 @media (max-width: 1024px) {
     body {
         padding: 24px 40px;
     }
+    
+    .step-guide {
+        padding: 16px 24px;
+        gap: 10px;
+    }
+    
+    .step {
+        min-width: 70px;
+    }
 }
 
+/* Large phones & small tablets */
 @media (max-width: 768px) {
     body {
         padding: 16px;
     }
     
+    .header h1 {
+        font-size: 1.5rem;
+    }
+    
+    .header p {
+        font-size: 0.85rem;
+    }
+    
     .upload-card {
-        padding: 20px;
+        padding: 16px;
     }
     
     .upload-area {
-        padding: 32px;
+        padding: 24px;
+    }
+    
+    .upload-icon {
+        font-size: 32px;
+    }
+    
+    .upload-area p {
+        font-size: 0.9rem;
+    }
+    
+    .timetable-container {
+        padding: 16px;
     }
     
     .timetable-header {
         flex-direction: column;
         align-items: flex-start;
+        gap: 12px;
+    }
+    
+    .timetable-header h2 {
+        font-size: 1rem;
     }
     
     .btn-group {
         width: 100%;
         justify-content: flex-start;
+        gap: 8px;
     }
     
     button {
         padding: 6px 14px;
+        font-size: 0.65rem;
+    }
+    
+    .btn-export {
+        padding: 8px 20px;
         font-size: 0.7rem;
     }
     
@@ -719,6 +991,8 @@ input[type="range"]::-moz-range-thumb {
     .timetable th,
     .timetable td {
         height: 60px;
+        min-height: 60px;
+        max-height: 60px;
     }
     
     .time-row {
@@ -728,9 +1002,121 @@ input[type="range"]::-moz-range-thumb {
     .timetable td.empty-cell {
         height: 60px;
     }
+    
+    .course-block {
+        min-height: 40px;
+        padding: 3px 4px;
+    }
+    
+    .step-guide {
+        padding: 14px 16px;
+        gap: 8px;
+    }
+    
+    .step {
+        min-width: 60px;
+    }
+    
+    .step-icon {
+        font-size: 1.4rem;
+    }
+    
+    .step-text {
+        font-size: 0.65rem;
+    }
+    
+    .step-desc {
+        font-size: 0.5rem;
+    }
+    
+    .step-arrow {
+        font-size: 0.9rem;
+    }
+    
+    .step-number {
+        width: 22px;
+        height: 22px;
+        font-size: 0.6rem;
+    }
+    
+    .info-tip::after {
+        max-width: 200px;
+        font-size: 0.6rem;
+        padding: 6px 10px;
+        white-space: normal;
+    }
+    
+    #customColorsContainer .form-row {
+        grid-template-columns: 1fr 1fr;
+    }
+    
+    .modal-content {
+        margin: 10% auto;
+        width: 95%;
+    }
 }
 
+/* Small phones */
 @media (max-width: 480px) {
+    body {
+        padding: 12px;
+    }
+    
+    .header h1 {
+        font-size: 1.2rem;
+    }
+    
+    .header p {
+        font-size: 0.75rem;
+    }
+    
+    .upload-card {
+        padding: 12px;
+        border-radius: 16px;
+    }
+    
+    .upload-area {
+        padding: 16px;
+        border-radius: 12px;
+    }
+    
+    .upload-icon {
+        font-size: 28px;
+    }
+    
+    .upload-icon img {
+        width: 32px !important;
+        height: 40px !important;
+    }
+    
+    .upload-area p {
+        font-size: 0.8rem;
+    }
+    
+    .upload-area small {
+        font-size: 0.65rem;
+    }
+    
+    .timetable-container {
+        padding: 12px;
+        border-radius: 16px;
+    }
+    
+    .timetable-header h2 {
+        font-size: 0.9rem;
+    }
+    
+    button {
+        padding: 4px 10px;
+        font-size: 0.6rem;
+        border-radius: 30px;
+    }
+    
+    .btn-export {
+        padding: 6px 16px;
+        font-size: 0.65rem;
+    }
+    
     .timetable {
         min-width: 600px;
         font-size: 0.6rem;
@@ -751,6 +1137,8 @@ input[type="range"]::-moz-range-thumb {
     .timetable th,
     .timetable td {
         height: 50px;
+        min-height: 50px;
+        max-height: 50px;
     }
     
     .time-row {
@@ -761,37 +1149,248 @@ input[type="range"]::-moz-range-thumb {
         height: 50px;
     }
     
-}
+    .course-block {
+        min-height: 30px;
+        padding: 2px 3px;
+        border-radius: 4px;
+    }
+    
+    .course-block .course-code {
+        font-size: clamp(0.4rem, 0.7vw, 0.5rem);
+    }
+    
+    .course-block .course-subject {
+        font-size: clamp(0.3rem, 0.6vw, 0.4rem);
+    }
+    
+    .course-block .course-time {
+        font-size: clamp(0.25rem, 0.5vw, 0.35rem);
+    }
+    
+    .course-block .course-room {
+        font-size: clamp(0.2rem, 0.4vw, 0.3rem);
+    }
+    
+    .step-guide {
+        padding: 10px 8px;
+        gap: 4px;
+        border-radius: 12px;
+    }
 
-@media (max-width: 640px) {
+    .step {
+        min-width: 45px;
+    }
+
+    .step-icon {
+        font-size: 1rem;
+    }
+
+    .step-text {
+        font-size: 0.5rem;
+    }
+
+    .step-desc {
+        display: none;
+    }
+
+    .step-arrow {
+        font-size: 0.6rem;
+    }
+
+    .step-number {
+        width: 16px;
+        height: 16px;
+        font-size: 0.4rem;
+    }
+    
+    .tip {
+        font-size: 0.6rem;
+        padding: 8px 12px;
+    }
+    
     .modal-content {
-        margin: 20% auto;
+        margin: 15% auto;
         width: 95%;
+        border-radius: 16px;
+    }
+    
+    .modal-header {
+        padding: 14px 16px;
+    }
+    
+    .modal-header h3 {
+        font-size: 1rem;
+    }
+    
+    .modal-body {
+        padding: 16px;
     }
     
     .form-row {
         grid-template-columns: 1fr;
-        gap: 16px;
+        gap: 12px;
     }
     
-    .modal-body {
-        padding: 20px;
+    .form-group label {
+        font-size: 0.65rem;
+    }
+    
+    .form-group input,
+    .form-group select {
+        padding: 10px 12px;
+        font-size: 0.8rem;
+    }
+    
+    .modal-btn {
+        padding: 8px 16px;
+        font-size: 0.75rem;
+    }
+    
+    #customColorsContainer .form-row {
+        grid-template-columns: 1fr 1fr;
+        gap: 6px;
+    }
+    
+    #customColorsContainer input[type="color"] {
+        height: 32px;
+    }
+    
+    #previewBtn {
+        padding: 8px 16px;
+        font-size: 0.7rem;
     }
 }
 
-/* Theme selector styling */
-#lockscreenTheme {
-    width: 100%;
-    padding: 12px 14px;
-    border: 1px solid #e2e8f0;
-    border-radius: 12px;
-    font-size: 0.9rem;
-    font-family: inherit;
-    background: white;
-    cursor: pointer;
-    appearance: auto;
+/* Extra small phones */
+@media (max-width: 360px) {
+    body {
+        padding: 8px;
+    }
+    
+    .step {
+        min-width: 35px;
+    }
+    
+    .step-icon {
+        font-size: 0.8rem;
+    }
+    
+    .step-text {
+        font-size: 0.4rem;
+    }
+    
+    .step-arrow {
+        font-size: 0.5rem;
+    }
+    
+    .step-number {
+        width: 14px;
+        height: 14px;
+        font-size: 0.35rem;
+    }
+    
+    .timetable {
+        min-width: 500px;
+        font-size: 0.5rem;
+    }
+    
+    .timetable th:not(:first-child),
+    .timetable td:not(:first-child) {
+        min-width: 50px;
+    }
+    
+    .timetable td:first-child,
+    .timetable thead th:first-child {
+        min-width: 40px;
+        width: 40px;
+        font-size: 0.4rem;
+    }
+    
+    .timetable th,
+    .timetable td {
+        height: 40px;
+        min-height: 40px;
+        max-height: 40px;
+    }
+    
+    .time-row {
+        height: 40px;
+    }
+    
+    .timetable td.empty-cell {
+        height: 40px;
+    }
+    
+    .course-block {
+        min-height: 24px;
+        padding: 1px 2px;
+        border-radius: 3px;
+    }
+    
+    .course-block .course-code {
+        font-size: clamp(0.3rem, 0.6vw, 0.4rem);
+    }
+    
+    .course-block .course-subject {
+        font-size: clamp(0.2rem, 0.5vw, 0.3rem);
+    }
+    
+    .course-block .course-time {
+        font-size: clamp(0.2rem, 0.4vw, 0.3rem);
+    }
+    
+    .course-block .course-room {
+        font-size: clamp(0.15rem, 0.3vw, 0.25rem);
+    }
 }
 
-#lockscreenTheme:hover {
-    border-color: #2563eb;
+/* Mobile landscape */
+@media (max-height: 500px) and (orientation: landscape) {
+    .timetable-wrapper {
+        max-height: 50vh;
+    }
+    
+    .header h1 {
+        font-size: 1.2rem;
+    }
+    
+    .header p {
+        font-size: 0.7rem;
+    }
+    
+    .step-guide {
+        padding: 8px 16px;
+        gap: 6px;
+    }
+    
+    .step-icon {
+        font-size: 1rem;
+    }
+    
+    .step-text {
+        font-size: 0.5rem;
+    }
+    
+    .step-desc {
+        display: none;
+    }
+    
+    .step-number {
+        width: 16px;
+        height: 16px;
+        font-size: 0.4rem;
+    }
+    
+    .upload-area {
+        padding: 12px;
+    }
+    
+    .upload-icon {
+        font-size: 24px;
+    }
+    
+    .upload-icon img {
+        width: 28px !important;
+        height: 36px !important;
+    }
 }
