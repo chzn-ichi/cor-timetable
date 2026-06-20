@@ -449,6 +449,147 @@ button {
     transform: scale(1.02);
 }
 
+
+/* ========== LOCKSREEN MODAL RESPONSIVE ========== */
+
+/* Default: Side-by-side (desktop/tablet) */
+#lockscreenModal .modal-body {
+    display: flex;
+    gap: 24px;
+    overflow: hidden;
+    flex: 1;
+    padding: 20px 24px;
+}
+
+/* Stack vertically on phones */
+@media (max-width: 768px) {
+    #lockscreenModal .modal-content {
+        max-width: 95%;
+        max-height: 95vh;
+    }
+    
+    #lockscreenModal .modal-body {
+        flex-direction: column;
+        gap: 16px;
+        padding: 16px;
+        overflow-y: auto;
+        max-height: 70vh;
+    }
+    
+    /* Left column - settings */
+    #lockscreenModal .modal-body > div:first-child {
+        max-height: none;
+        overflow-y: visible;
+        padding-right: 0;
+        min-width: unset;
+        flex: none;
+    }
+    
+    /* Right column - preview */
+    #lockscreenModal .modal-body > div:last-child {
+        min-height: 300px;
+        max-height: 400px;
+        overflow-y: auto;
+        flex: none;
+        width: 100%;
+    }
+    
+    /* Custom colors container on mobile */
+    #customColorsContainer .form-row {
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+    }
+    
+    /* Smaller padding for mobile */
+    #previewContainer .lockscreen-preview {
+        padding: 16px 12px !important;
+    }
+    
+    #previewContainer .lockscreen-preview h1 {
+        font-size: 1.8rem !important;
+    }
+    
+    #previewContainer .lockscreen-preview .day-name {
+        font-size: 1rem !important;
+    }
+    
+    #previewContainer .lockscreen-preview .class-time {
+        font-size: 0.65rem !important;
+        min-width: 70px !important;
+    }
+    
+    #previewContainer .lockscreen-preview .class-name {
+        font-size: 0.7rem !important;
+    }
+    
+    #previewContainer .lockscreen-preview .class-room {
+        font-size: 0.6rem !important;
+        min-width: 50px !important;
+    }
+    
+    #previewContainer .lockscreen-preview .day-card {
+        padding: 10px 10px !important;
+    }
+    
+    #previewContainer .lockscreen-preview .class-item {
+        gap: 8px !important;
+        padding: 3px 0 !important;
+    }
+}
+
+@media (max-width: 480px) {
+    #lockscreenModal .modal-body > div:last-child {
+        min-height: 250px;
+        max-height: 350px;
+    }
+    
+    #customColorsContainer .form-row {
+        grid-template-columns: 1fr 1fr;
+        gap: 6px;
+    }
+    
+    #customColorsContainer input[type="color"] {
+        height: 32px;
+    }
+    
+    #previewContainer .lockscreen-preview {
+        padding: 12px 8px !important;
+    }
+    
+    #previewContainer .lockscreen-preview h1 {
+        font-size: 1.4rem !important;
+    }
+    
+    #previewContainer .lockscreen-preview .day-name {
+        font-size: 0.8rem !important;
+    }
+    
+    #previewContainer .lockscreen-preview .class-time {
+        font-size: 0.55rem !important;
+        min-width: 55px !important;
+    }
+    
+    #previewContainer .lockscreen-preview .class-name {
+        font-size: 0.6rem !important;
+    }
+    
+    #previewContainer .lockscreen-preview .class-room {
+        font-size: 0.5rem !important;
+        min-width: 40px !important;
+    }
+    
+    #previewContainer .lockscreen-preview .day-card {
+        padding: 8px 8px !important;
+        border-radius: 10px !important;
+    }
+    
+    #previewContainer .lockscreen-preview .class-item {
+        gap: 6px !important;
+        padding: 2px 0 !important;
+    }
+}
+
+
 /* ========== TIMETABLE WRAPPER ========== */
 .timetable-wrapper {
     position: relative;
