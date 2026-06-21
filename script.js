@@ -149,7 +149,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (generateLockscreenBtn) generateLockscreenBtn.onclick = generateLockscreenImage;
     if (lockscreenCloseBtn) lockscreenCloseBtn.onclick = closeLockscreenModal;
 
-
+    // Theme selector - show/hide custom colors & auto-preview
     const themeSelect = document.getElementById('lockscreenTheme');
     const customColorsContainer = document.getElementById('customColorsContainer');
 
@@ -158,8 +158,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // Show/hide custom colors
             if (this.value === 'custom') {
                 customColorsContainer.style.display = 'block';
-                
-                // NEW: Show preview with current custom colors immediately
+                // Show preview with current custom colors
                 const theme = {
                     background: document.getElementById('customBg').value,
                     card: document.getElementById('customCard').value,
@@ -171,7 +170,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     border: 'rgba(0,0,0,0.1)'
                 };
                 previewLockscreen(theme, 'Custom Colors');
-                
             } else {
                 customColorsContainer.style.display = 'none';
                 // Auto-preview the selected theme
@@ -182,7 +180,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-
     // Toggle custom size inputs in lockscreen modal
     const lockscreenSizeSelect = document.getElementById('lockscreenSize');
     const lockscreenCustomContainer = document.getElementById('lockscreenCustomContainer');
@@ -191,7 +188,6 @@ document.addEventListener('DOMContentLoaded', () => {
             lockscreenCustomContainer.style.display = lockscreenSizeSelect.value === 'custom' ? 'block' : 'none';
         });
     }
-
 
     // Auto-preview when custom color changes
     document.querySelectorAll('#customBg, #customCard, #customTitle, #customDayName, #customText, #customTime, #customRoom').forEach(input => {
@@ -301,7 +297,7 @@ function showDemoGrid() {
     }
     
     let html = '<div class="timetable-wrapper">';
-    html += '<table class="timetable" id="timetableTable">';  // Add id here too
+    html += '<table class="timetable" id="timetableTable">';
     html += '<thead><tr><th class="time-col">Time</th>';
     days.forEach(day => { html += `<th>${day}</th>`; });
     html += '</thead><tbody>';
@@ -356,6 +352,7 @@ async function handleFileUpload(e) {
     }
 }
 
+// ========== PARSE COR FUNCTION ==========
 async function parseCOR(file) {
     const arrayBuffer = await file.arrayBuffer();
     const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
@@ -657,6 +654,7 @@ function extractSchedulesFromText(text, course) {
     }
 }
 
+// ========== TIMETABLE RENDERING ==========
 function renderTimetableGrid() {
     const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
     const dayMap = { 'M': 'Monday', 'T': 'Tuesday', 'W': 'Wednesday', 'Th': 'Thursday', 'F': 'Friday', 'S': 'Saturday' };
@@ -717,7 +715,6 @@ function renderTimetableGrid() {
                 // Find occupied columns at this moment
                 const occupied = new Set();
                 for (const active of activeEvents) {
-                    // Check if they overlap
                     if (active.start < event.end && active.end > event.start) {
                         occupied.add(active.column);
                     }
@@ -737,15 +734,11 @@ function renderTimetableGrid() {
         }
         
         // SECOND PASS: Calculate max columns for each event
-        // An event's maxColumns = max number of overlapping events at ANY point during its duration
         for (const event of events) {
             let maxOverlap = 1;
             for (const other of events) {
                 if (other === event) continue;
-                // Check if they overlap at any point
                 if (other.start < event.end && other.end > event.start) {
-                    // Count how many events are active at the overlap
-                    // Check at the start of the overlap
                     const overlapStart = Math.max(event.start, other.start);
                     const activeAtOverlap = events.filter(e => 
                         e.start <= overlapStart && e.end > overlapStart
@@ -790,7 +783,7 @@ function renderTimetableGrid() {
         positionEvents(dayEvents);
     });
     
-    // ADD THIS: Store dayEvents for resize handling
+    // Store dayEvents for resize handling
     window._dayEvents = dayEvents;
     
     // Remove old resize listener if exists
@@ -817,41 +810,26 @@ function positionEvents(dayEvents) {
     // Clear previous events
     eventsLayer.innerHTML = '';
     
-    // ADD THIS - dayIndex mapping
     const dayIndex = { 'Monday': 0, 'Tuesday': 1, 'Wednesday': 2, 'Thursday': 3, 'Friday': 4, 'Saturday': 5 };
     
-    // Wait for layout to settle
     setTimeout(() => {
-        const tableRect = table.getBoundingClientRect();
-        const wrapperRect = wrapper.getBoundingClientRect();
-        
-        // Get cell dimensions from the first row
         const firstRow = table.querySelector('tbody tr');
         if (!firstRow) return;
         
         const cells = firstRow.querySelectorAll('td');
         if (cells.length < 2) return;
         
-        // Get time column width
         const timeCell = cells[0];
         const timeColWidth = timeCell.offsetWidth;
-        
-        // Get day cell width (all day cells should be equal)
         const dayCell = cells[1];
         const dayWidth = dayCell.offsetWidth;
-        
-        // Get row height
         const rowHeight = firstRow.offsetHeight;
-        
-        // Get header height
         const thead = table.querySelector('thead');
         const headerHeight = thead ? thead.offsetHeight : 0;
         
-        // Calculate total table width
         const totalWidth = timeColWidth + (dayWidth * 6);
         const totalHeight = table.offsetHeight;
         
-        // Set events layer dimensions
         eventsLayer.style.width = totalWidth + 'px';
         eventsLayer.style.height = totalHeight + 'px';
         eventsLayer.style.position = 'absolute';
@@ -860,27 +838,22 @@ function positionEvents(dayEvents) {
         eventsLayer.style.pointerEvents = 'none';
         eventsLayer.style.overflow = 'hidden';
         
-        // Clear previous events
         eventsLayer.innerHTML = '';
         
         const GAP = 2;
         const START_HOUR = 5;
         
-        // Position each event
         for (const day in dayEvents) {
             const events = dayEvents[day];
-            const colIndex = dayIndex[day];  // ← Now dayIndex is defined
+            const colIndex = dayIndex[day];
             if (colIndex === undefined) continue;
             
             for (const event of events) {
-                // Calculate position
                 const startOffset = (event.start - START_HOUR) * rowHeight + headerHeight;
                 const duration = (event.end - event.start) * rowHeight;
-                
                 const eventWidth = (dayWidth / event.maxColumns) - GAP;
                 const leftOffset = timeColWidth + (colIndex * dayWidth) + (event.column * (dayWidth / event.maxColumns)) + (GAP / 2);
                 
-                // Create course element
                 const el = document.createElement('div');
                 el.className = 'course-block absolute-course';
                 el.style.position = 'absolute';
@@ -892,7 +865,7 @@ function positionEvents(dayEvents) {
                 el.style.background = '#A9C7EB';
                 el.style.borderRadius = '6px';
                 el.style.padding = '5px 6px';
-                el.style.border = '1px solid #8EB2DD';  
+                el.style.border = '1px solid #8EB2DD';
                 el.style.cursor = 'pointer';
                 el.style.overflow = 'hidden';
                 el.style.boxSizing = 'border-box';
@@ -900,7 +873,6 @@ function positionEvents(dayEvents) {
                 el.style.flexDirection = 'column';
                 el.style.pointerEvents = 'auto';
 
-                // Build content
                 let content = `<div class="course-code" style="font-weight: 700; color: #173A63; font-size: clamp(0.4rem, 0.9vw, 0.7rem); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(event.course.code)}</div>`;
                 if (event.course.subject && event.course.subject !== event.course.code) {
                     content += `<div class="course-subject" style="font-size: clamp(0.35rem, 0.8vw, 0.6rem); color: #4F6B8A; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(event.course.subject.substring(0, 15))}</div>`;
@@ -911,7 +883,6 @@ function positionEvents(dayEvents) {
                 }
                 el.innerHTML = content;
                 
-                // Click handler
                 el.addEventListener('click', function(e) {
                     e.stopPropagation();
                     editCourse(event.course.code, event.meeting.day, event.meeting.startTime);
@@ -922,7 +893,6 @@ function positionEvents(dayEvents) {
         }
     }, 50);
 }
-
 
 function timeToFloat(timeStr) {
     const match = timeStr.match(/(\d+):(\d+)\s*(AM|PM)/i);
@@ -939,96 +909,43 @@ function timeToFloat(timeStr) {
 
 function getDaysArray(dayCode) {
     const map = {
-        // Single days
-        'M': ['Monday'],
-        'T': ['Tuesday'],
-        'W': ['Wednesday'],
-        'Th': ['Thursday'],
-        'F': ['Friday'],
-        'S': ['Saturday'],
-        
-        // Two-day combinations
-        'MF': ['Monday', 'Friday'],
-        'MW': ['Monday', 'Wednesday'],
-        'MTh': ['Monday', 'Thursday'],
-        'MT': ['Monday', 'Tuesday'],
-        'TTh': ['Tuesday', 'Thursday'],
-        'TW': ['Tuesday', 'Wednesday'],
-        'TF': ['Tuesday', 'Friday'],
-        'WTh': ['Wednesday', 'Thursday'],
-        'WF': ['Wednesday', 'Friday'],
-        'ThF': ['Thursday', 'Friday'],
-        'ThS': ['Thursday', 'Saturday'],
-        'FS': ['Friday', 'Saturday'],
-        
-        // Three-day combinations
-        'MWF': ['Monday', 'Wednesday', 'Friday'],
-        'MThF': ['Monday', 'Thursday', 'Friday'],
-        'MTW': ['Monday', 'Tuesday', 'Wednesday'],
-        'TWS': ['Tuesday', 'Wednesday', 'Saturday'],
-        'TThS': ['Tuesday', 'Thursday', 'Saturday'],
-        'WFS': ['Wednesday', 'Friday', 'Saturday'],
-        
-        // Four-day combinations
+        'M': ['Monday'], 'T': ['Tuesday'], 'W': ['Wednesday'],
+        'Th': ['Thursday'], 'F': ['Friday'], 'S': ['Saturday'],
+        'MF': ['Monday', 'Friday'], 'MW': ['Monday', 'Wednesday'],
+        'MTh': ['Monday', 'Thursday'], 'MT': ['Monday', 'Tuesday'],
+        'TTh': ['Tuesday', 'Thursday'], 'TW': ['Tuesday', 'Wednesday'],
+        'TF': ['Tuesday', 'Friday'], 'WTh': ['Wednesday', 'Thursday'],
+        'WF': ['Wednesday', 'Friday'], 'ThF': ['Thursday', 'Friday'],
+        'ThS': ['Thursday', 'Saturday'], 'FS': ['Friday', 'Saturday'],
+        'MWF': ['Monday', 'Wednesday', 'Friday'], 'MThF': ['Monday', 'Thursday', 'Friday'],
+        'MTW': ['Monday', 'Tuesday', 'Wednesday'], 'TWS': ['Tuesday', 'Wednesday', 'Saturday'],
+        'TThS': ['Tuesday', 'Thursday', 'Saturday'], 'WFS': ['Wednesday', 'Friday', 'Saturday'],
         'MTWTh': ['Monday', 'Tuesday', 'Wednesday', 'Thursday'],
         'MTWF': ['Monday', 'Tuesday', 'Wednesday', 'Friday'],
         'MTThF': ['Monday', 'Tuesday', 'Thursday', 'Friday'],
         'MWThF': ['Monday', 'Wednesday', 'Thursday', 'Friday'],
-        
-        // Five-day combinations
         'MTWThF': ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
-        
-        // Common aliases (some CORs use different formats)
-        'TUE': ['Tuesday'],
-        'WED': ['Wednesday'],
-        'THU': ['Thursday'],
-        'FRI': ['Friday'],
-        'SAT': ['Saturday'],
-        'SUN': ['Sunday'],
-        'TTH': ['Tuesday', 'Thursday'],
-        'MTH': ['Monday', 'Thursday'],
-        'TTHF': ['Tuesday', 'Thursday', 'Friday'],
-        'MWTH': ['Monday', 'Wednesday', 'Thursday'],
-        
-        // With spaces (some PDFs extract with spaces)
-        'M W': ['Monday', 'Wednesday'],
-        'M W F': ['Monday', 'Wednesday', 'Friday'],
-        'T TH': ['Tuesday', 'Thursday'],
-        'T TH F': ['Tuesday', 'Thursday', 'Friday'],
-        'M TH': ['Monday', 'Thursday'],
+        'TUE': ['Tuesday'], 'WED': ['Wednesday'], 'THU': ['Thursday'],
+        'FRI': ['Friday'], 'SAT': ['Saturday'], 'SUN': ['Sunday'],
+        'TTH': ['Tuesday', 'Thursday'], 'MTH': ['Monday', 'Thursday'],
+        'TTHF': ['Tuesday', 'Thursday', 'Friday'], 'MWTH': ['Monday', 'Wednesday', 'Thursday'],
+        'M W': ['Monday', 'Wednesday'], 'M W F': ['Monday', 'Wednesday', 'Friday'],
+        'T TH': ['Tuesday', 'Thursday'], 'T TH F': ['Tuesday', 'Thursday', 'Friday'],
+        'M TH': ['Monday', 'Thursday']
     };
     
-    // Direct lookup
     if (map[dayCode]) return map[dayCode];
-    
-    // Try uppercase version
     if (map[dayCode.toUpperCase()]) return map[dayCode.toUpperCase()];
-    
-    // Remove spaces and try again
     const noSpaces = dayCode.replace(/\s/g, '');
     if (map[noSpaces]) return map[noSpaces];
-    
-    // Handle "TF" (some CORs use TF for Tuesday/Thursday)
     if (dayCode === 'TF' || dayCode === 'T F') return ['Tuesday', 'Thursday'];
-    
-    // Handle "MTh" variations
     if (dayCode.match(/M\s*Th/i)) return ['Monday', 'Thursday'];
-    
-    // Handle "MWF" variations
     if (dayCode.match(/M\s*W\s*F/i)) return ['Monday', 'Wednesday', 'Friday'];
     
-    // Fallback: try to parse individual letters
     const days = [];
     const letters = dayCode.toUpperCase().match(/[MTWFHS]/g);
     if (letters) {
-        const letterMap = {
-            'M': 'Monday',
-            'T': 'Tuesday',
-            'W': 'Wednesday',
-            'F': 'Friday',
-            'H': 'Thursday',  // Some use H for Thursday
-            'S': 'Saturday'
-        };
+        const letterMap = { 'M': 'Monday', 'T': 'Tuesday', 'W': 'Wednesday', 'F': 'Friday', 'H': 'Thursday', 'S': 'Saturday' };
         for (const letter of letters) {
             if (letterMap[letter] && !days.includes(letterMap[letter])) {
                 days.push(letterMap[letter]);
@@ -1037,7 +954,6 @@ function getDaysArray(dayCode) {
         if (days.length > 0) return days;
     }
     
-    // Default: return as single item array
     console.warn(`Unknown day code: ${dayCode}`);
     return [dayCode];
 }
@@ -1047,8 +963,6 @@ function editCourse(courseCode, meetingDay, meetingStartTime) {
     if (!course) return;
     
     currentEditingCourse = course;
-    
-    // Find which meeting is being edited
     const meetingIndex = course.meetings.findIndex(m => m.day === meetingDay && m.startTime === meetingStartTime);
     currentEditingMeetingIndex = meetingIndex;
     const meeting = course.meetings[meetingIndex] || course.meetings[0];
@@ -1063,7 +977,6 @@ function editCourse(courseCode, meetingDay, meetingStartTime) {
     
     validateEditModal();
     
-    // Delete button always visible
     const deleteBtn = document.getElementById('deleteBtn');
     if (deleteBtn) {
         deleteBtn.style.display = 'inline-block';
@@ -1075,19 +988,16 @@ function editCourse(courseCode, meetingDay, meetingStartTime) {
 function saveCourseEdits() {
     if (!currentEditingCourse) return;
     
-    // Update course basic info
     currentEditingCourse.code = document.getElementById('editCode').value.trim();
     currentEditingCourse.subject = document.getElementById('editSubject').value.trim();
     currentEditingCourse.faculty = document.getElementById('editFaculty').value.trim();
     
-    // Update the specific meeting
     const newDay = document.getElementById('editDay').value;
     const newStartTime = document.getElementById('editStartTime').value;
     const newEndTime = document.getElementById('editEndTime').value;
     const newRoom = document.getElementById('editRoom').value.trim();
     
     if (currentEditingMeetingIndex !== null && currentEditingCourse.meetings[currentEditingMeetingIndex]) {
-        // Update existing meeting
         currentEditingCourse.meetings[currentEditingMeetingIndex] = {
             day: newDay,
             startTime: newStartTime,
@@ -1095,10 +1005,8 @@ function saveCourseEdits() {
             room: newRoom
         };
     } else {
-        // Fallback: update all meetings (should not happen normally)
         const expandedDays = getDaysArray(newDay);
         const dayShortMap = { 'Monday': 'M', 'Tuesday': 'T', 'Wednesday': 'W', 'Thursday': 'Th', 'Friday': 'F', 'Saturday': 'S' };
-        
         currentEditingCourse.meetings = [];
         for (const fullDay of expandedDays) {
             currentEditingCourse.meetings.push({
@@ -1125,8 +1033,6 @@ function floatToTime(floatVal) {
     return `${displayHour}:${minuteStr} ${period}`;
 }
 
-
-
 function addCourse() {
     const code = document.getElementById('addCode').value.trim();
     const subject = document.getElementById('addSubject').value.trim();
@@ -1136,22 +1042,18 @@ function addCourse() {
     const endTime = document.getElementById('addEndTime').value;
     const room = document.getElementById('addRoom').value.trim();
     
-    // Clear previous error styling
     document.getElementById('addCode').style.borderColor = '';
     document.getElementById('addCode').style.backgroundColor = '';
     
-    // Validation
     if (!code) {
         showStatus('Course Code is required.', 'error');
         validateAddModal();
-        // Highlight the empty field
         document.getElementById('addCode').style.borderColor = '#ef4444';
         document.getElementById('addCode').style.backgroundColor = '#fef2f2';
         document.getElementById('addCode').focus();
         return;
     }
     
-    // Optional: Add validation for duplicate course code warning
     const existingCourse = currentCourses.find(c => c.code === code);
     if (existingCourse) {
         if (!confirm(`"${code}" already exists.\n\nDo you want to add a new meeting time to this existing course?`)) {
@@ -1159,10 +1061,8 @@ function addCourse() {
         }
     }
     
-    // Rest of your addCourse code continues here...
     const expandedDays = getDaysArray(day);
     const dayShortMap = { 'Monday': 'M', 'Tuesday': 'T', 'Wednesday': 'W', 'Thursday': 'Th', 'Friday': 'F', 'Saturday': 'S' };
-    
     const meetings = [];
     for (const fullDay of expandedDays) {
         meetings.push({
@@ -1173,11 +1073,8 @@ function addCourse() {
         });
     }
     
-    // Check if course already exists
     let existingCourseFind = currentCourses.find(c => c.code === code);
-    
     if (existingCourseFind) {
-        // Add meetings to existing course
         for (const meeting of meetings) {
             if (!existingCourseFind.meetings.some(m => m.day === meeting.day && m.startTime === meeting.startTime)) {
                 existingCourseFind.meetings.push(meeting);
@@ -1186,7 +1083,6 @@ function addCourse() {
         if (subject) existingCourseFind.subject = subject;
         if (faculty) existingCourseFind.faculty = faculty;
     } else {
-        // Create new course
         currentCourses.push({
             code: code,
             subject: subject,
@@ -1209,11 +1105,9 @@ function openAddModal() {
     document.getElementById('addEndTime').value = '8:30 AM';
     document.getElementById('addRoom').value = '';
     
-    // Disable save button initially
     const saveBtn = document.getElementById('saveAddBtn');
     if (saveBtn) saveBtn.disabled = true;
     
-    // Hide warning
     const warning = document.getElementById('addConflictWarning');
     if (warning) warning.style.display = 'none';
     
@@ -1223,7 +1117,6 @@ function openAddModal() {
 function closeAddModal() {
     document.getElementById('addModal').style.display = 'none';
 }
-
 
 let pendingDeleteCourse = null;
 let pendingDeleteMeetingIndex = null;
@@ -1246,33 +1139,21 @@ function deleteCurrentMeeting() {
     document.getElementById('deleteConfirmModal').style.display = 'block';
 }
 
-
 function validateEditModal() {
     const courseCode = document.getElementById('editCode').value.trim();
     const saveBtn = document.getElementById('saveBtn');
-    
     if (saveBtn) {
-        if (!courseCode) {
-            saveBtn.disabled = true;
-        } else {
-            saveBtn.disabled = false;
-        }
+        saveBtn.disabled = !courseCode;
     }
 }
 
 function validateAddModal() {
     const courseCode = document.getElementById('addCode').value.trim();
     const saveBtn = document.getElementById('saveAddBtn');
-    
     if (saveBtn) {
-        if (!courseCode) {
-            saveBtn.disabled = true;
-        } else {
-            saveBtn.disabled = false;
-        }
+        saveBtn.disabled = !courseCode;
     }
 }
-
 
 function confirmDelete() {
     if (!pendingDeleteCourse) {
@@ -1281,10 +1162,8 @@ function confirmDelete() {
     }
     
     if (pendingDeleteMeetingIndex !== null && pendingDeleteCourse.meetings.length > 1) {
-        // Remove just this meeting
         pendingDeleteCourse.meetings.splice(pendingDeleteMeetingIndex, 1);
     } else {
-        // Remove the entire course
         const courseIndex = currentCourses.findIndex(c => c.code === pendingDeleteCourse.code);
         if (courseIndex !== -1) {
             currentCourses.splice(courseIndex, 1);
@@ -1292,11 +1171,10 @@ function confirmDelete() {
     }
     
     renderTimetableGrid();
-    closeModal(); // Close edit modal
+    closeModal();
     closeDeleteModal();
     showStatus('Class deleted successfully!', 'success');
     
-    // Clean up
     pendingDeleteCourse = null;
     pendingDeleteMeetingIndex = null;
 }
@@ -1311,8 +1189,6 @@ function closeModal() {
     document.getElementById('editModal').style.display = 'none';
     currentEditingCourse = null;
 }
-
-
 
 function resetToOriginal() {
     if (originalCourses.length) {
@@ -1330,19 +1206,15 @@ async function generateLockscreen() {
         showStatus('Please upload a COR first.', 'error');
         return;
     }
-    
-    // Open settings modal instead of generating immediately
     openLockscreenModal();
 }
 
 function openLockscreenModal() {
-    // Hide custom container by default
     const customContainer = document.getElementById('lockscreenCustomContainer');
     if (customContainer) {
         customContainer.style.display = 'none';
     }
     
-    // Set default padding
     const paddingSlider = document.getElementById('paddingSlider');
     const paddingValue = document.getElementById('paddingValue');
     if (paddingSlider) {
@@ -1350,13 +1222,11 @@ function openLockscreenModal() {
         paddingValue.textContent = lockscreenPadding || 5;
     }
     
-    // Load saved theme
     const themeSelect = document.getElementById('lockscreenTheme');
     if (themeSelect) {
         const savedTheme = localStorage.getItem('lockscreenTheme') || 'default';
         themeSelect.value = savedTheme;
         
-        // Load saved custom colors if theme is 'custom'
         if (savedTheme === 'custom') {
             document.getElementById('customColorsContainer').style.display = 'block';
             const savedColors = localStorage.getItem('customColors');
@@ -1371,7 +1241,6 @@ function openLockscreenModal() {
                 document.getElementById('customRoom').value = colors.room || '#5a7a8e';
             }
             
-            // NEW: Show preview with current custom colors
             const theme = {
                 background: document.getElementById('customBg').value,
                 card: document.getElementById('customCard').value,
@@ -1384,7 +1253,6 @@ function openLockscreenModal() {
             };
             previewLockscreen(theme, 'Custom Colors');
         } else {
-            // Auto-preview the saved theme
             const theme = LOCKSREEN_THEMES[savedTheme] || LOCKSREEN_THEMES.default;
             const themeName = themeSelect.options[themeSelect.selectedIndex].text;
             previewLockscreen(theme, themeName);
@@ -1402,7 +1270,6 @@ async function generateLockscreenImage() {
     closeLockscreenModal();
     showLoading(true);
     
-    // Get selected size
     const sizeSelect = document.getElementById('lockscreenSize');
     let targetWidth = 1080;
     let targetHeight = 1920;
@@ -1421,17 +1288,14 @@ async function generateLockscreenImage() {
     if (!targetWidth || targetWidth <= 0) targetWidth = 1080;
     if (!targetHeight || targetHeight <= 0) targetHeight = 1920;
     
-    // Get padding
     const padding = parseInt(document.getElementById('paddingSlider').value) / 100;
     lockscreenPadding = parseInt(document.getElementById('paddingSlider').value);
     
-    // Get selected theme
     const themeSelect = document.getElementById('lockscreenTheme');
     let themeKey = themeSelect ? themeSelect.value : 'default';
     let theme;
 
     if (themeKey === 'custom') {
-        // Build custom theme from color pickers
         theme = {
             background: document.getElementById('customBg').value,
             card: document.getElementById('customCard').value,
@@ -1442,19 +1306,16 @@ async function generateLockscreenImage() {
             room: document.getElementById('customRoom').value,
             border: 'rgba(0,0,0,0.1)'
         };
-        // Save custom colors
         localStorage.setItem('customColors', JSON.stringify(theme));
     } else {
         theme = LOCKSREEN_THEMES[themeKey] || LOCKSREEN_THEMES.default;
     }
 
-    // Save theme preference (ONCE)
     localStorage.setItem('lockscreenTheme', themeKey);
     
     const dayMap = { 'M': 'Monday', 'T': 'Tuesday', 'W': 'Wednesday', 'Th': 'Thursday', 'F': 'Friday', 'S': 'Saturday' };
     const fullDayMap = { 'Monday': 'MON', 'Tuesday': 'TUE', 'Wednesday': 'WED', 'Thursday': 'THU', 'Friday': 'FRI', 'Saturday': 'SAT' };
     
-    // Group courses by day using meetings
     const scheduleByDay = {};
     const daysOrder = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
     daysOrder.forEach(day => { scheduleByDay[day] = []; });
@@ -1474,7 +1335,6 @@ async function generateLockscreenImage() {
         }
     }
     
-    // Sort classes by time for each day
     for (const day in scheduleByDay) {
         scheduleByDay[day].sort((a, b) => timeToFloat(a.startTime) - timeToFloat(b.startTime));
     }
@@ -1487,105 +1347,278 @@ async function generateLockscreenImage() {
         return;
     }
     
-    // Build lockscreen HTML with theme colors
-    const renderWidth = 1080;
-    const renderHeight = 1920;
-    
-    let html = `<div class="lockscreen-wallpaper" id="lockscreenWallpaper" style="
-        width: ${renderWidth}px;
-        height: ${renderHeight}px;
-        min-height: ${renderHeight}px;
-        background: ${theme.background};
-        padding: 60px 40px 40px 40px;
-        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-        box-sizing: border-box;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-    ">
-        <div class="lockscreen-title" style="text-align: center; margin-bottom: 32px; flex-shrink: 0;">
-            <h1 style="font-family: 'Playfair Display', 'Georgia', serif; font-size: 5rem; font-weight: 600; color: ${theme.title}; letter-spacing: -0.5px; margin: 0;">Class Schedule</h1>
-        </div>
-        <div class="lockscreen-schedule" style="display: flex; flex-direction: column; gap: 50px; flex: 1; overflow: hidden; justify-content: center;">
-    `;
-    
+    // Count total classes
+    let totalClasses = 0;
+    let maxClassesInDay = 0;
     for (const day of daysWithClasses) {
-        const classes = scheduleByDay[day];
-        const shortDay = fullDayMap[day];
-        
-        html += `<div class="day-card" style="
-            background: ${theme.card};
-            border-radius: 24px;
-            padding: 32px 28px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
-            flex-shrink: 0;
-        ">
-            <div class="day-header" style="
-                display: flex;
-                align-items: center;
-                justify-content: space-between;
-                margin-bottom: 16px;
-                padding-bottom: 12px;
-                border-bottom: 2px solid ${theme.border};
-            ">
-                <span class="day-name" style="font-size: 2.2rem; font-weight: 700; color: ${theme.dayName}; letter-spacing: 0.5px;">${shortDay}</span>
-            </div>
-            <div class="class-list" style="display: flex; flex-direction: column; gap: 14px;">
-        `;
-        
-        for (const cls of classes) {
-            const timeRange = `${cls.startTime} – ${cls.endTime}`;
-            html += `
-                <div class="class-item" style="
-                    display: flex;
-                    align-items: baseline;
-                    gap: 20px;
-                    padding: 8px 0;
-                    flex-wrap: nowrap;
-                ">
-                    <div class="class-time" style="
-                        min-width: 160px;
-                        font-size: 1.4rem;
-                        font-weight: 500;
-                        color: ${theme.time};
-                        font-family: 'SF Mono', 'Menlo', monospace;
-                        letter-spacing: -0.3px;
-                        flex-shrink: 0;
-                    ">${escapeHtml(timeRange)}</div>
-                    <div class="class-name" style="
-                        flex: 1;
-                        font-size: 1.5rem;
-                        font-weight: 600;
-                        color: ${theme.text};
-                        letter-spacing: -0.3px;
-                        white-space: nowrap;
-                        overflow: hidden;
-                        text-overflow: ellipsis;
-                    ">${escapeHtml(cls.name.substring(0, 40))}</div>
-                    <div class="class-room" style="
-                        font-size: 1.3rem;
-                        font-weight: 500;
-                        color: ${theme.room};
-                        min-width: 120px;
-                        text-align: right;
-                        flex-shrink: 0;
-                    ">${escapeHtml(cls.room || 'TBA')}</div>
-                </div>
-            `;
-        }
-        html += `</div></div>`;
+        const count = scheduleByDay[day].length;
+        totalClasses += count;
+        if (count > maxClassesInDay) maxClassesInDay = count;
     }
     
-    html += `
-        </div>
-    </div>`;
+    // ============================================================
+    // PRIORITY SYSTEM: Start with ideal layout, compress as needed
+    // ============================================================
     
-    // Store original and show lockscreen
+    // Priority 1: Start with generous, beautiful spacing
+    let titleSize = 4.5;
+    let titleMargin = 32;
+    let dayNameSize = 2.0;
+    let dayMargin = 20;
+    let timeSize = 1.8;
+    let classNameSize = 1.9;
+    let roomSize = 1.5;
+    let cardPadding = 20;
+    let cardRadius = 14;
+    let gapSize = 30;
+    let classGap = 6;
+    let timeMinWidth = 110;
+    let roomMinWidth = 85;
+    let topPadding = 60;  // Generous top padding (Priority 1)
+    let bottomPadding = 40;
+    let sidePadding = 32;
+    let cardBorderWidth = 2;
+    
+    const renderWidth = 1080;
+    const renderHeight = 1920;
+    const maxAllowedHeight = renderHeight * 0.92;
+    
+    // Helper to build the HTML with current values
+    function buildWallpaperHTML() {
+        let html = `<div class="lockscreen-wallpaper" id="lockscreenWallpaper" style="
+            width: ${renderWidth}px;
+            height: ${renderHeight}px;
+            min-height: ${renderHeight}px;
+            background: ${theme.background};
+            padding: ${topPadding}px ${sidePadding}px ${bottomPadding}px ${sidePadding}px;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            position: relative;
+            justify-content: flex-start;
+            align-items: stretch;
+        ">
+            <div class="lockscreen-title" style="
+                text-align: center; 
+                margin-bottom: ${titleMargin}px; 
+                flex-shrink: 0;
+                width: 100%;
+            ">
+                <h1 style="
+                    font-family: 'Playfair Display', 'Georgia', serif; 
+                    font-size: ${titleSize}rem; 
+                    font-weight: 600; 
+                    color: ${theme.title}; 
+                    letter-spacing: -0.5px; 
+                    margin: 0;
+                ">Class Schedule</h1>
+            </div>
+            <div class="lockscreen-schedule" style="
+                display: flex; 
+                flex-direction: column; 
+                gap: ${gapSize}px; 
+                flex: 0 1 auto; 
+                overflow: hidden; 
+                width: 100%;
+            ">
+        `;
+        
+        for (const day of daysWithClasses) {
+            const classes = scheduleByDay[day];
+            const shortDay = fullDayMap[day];
+            
+            html += `<div class="day-card" style="
+                background: ${theme.card};
+                border-radius: ${cardRadius}px;
+                padding: ${cardPadding}px ${cardPadding * 1.2}px;
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+                flex-shrink: 0;
+                border: ${cardBorderWidth}px solid ${theme.border};
+            ">
+                <div class="day-header" style="
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                    margin-bottom: ${dayMargin}px;
+                    padding-bottom: 4px;
+                    border-bottom: 2px solid ${theme.border};
+                ">
+                    <span class="day-name" style="font-size: ${dayNameSize}rem; font-weight: 700; color: ${theme.dayName}; letter-spacing: 0.5px;">${shortDay}</span>
+                    <span style="font-size: 0.65rem; color: ${theme.time}; opacity: 0.5;">${classes.length}</span>
+                </div>
+                <div class="class-list" style="display: flex; flex-direction: column; gap: ${classGap}px;">
+            `;
+            
+            for (const cls of classes) {
+                const timeRange = `${cls.startTime} – ${cls.endTime}`;
+                const displayName = cls.name.length > 28 ? cls.name.substring(0, 28) + '…' : cls.name;
+                
+                html += `
+                    <div class="class-item" style="
+                        display: flex;
+                        align-items: baseline;
+                        gap: 10px;
+                        padding: 2px 0;
+                        flex-wrap: nowrap;
+                    ">
+                        <div class="class-time" style="
+                            min-width: ${timeMinWidth}px;
+                            font-size: ${timeSize}rem;
+                            font-weight: 500;
+                            color: ${theme.time};
+                            font-family: 'SF Mono', 'Menlo', monospace;
+                            letter-spacing: -0.3px;
+                            flex-shrink: 0;
+                        ">${escapeHtml(timeRange)}</div>
+                        <div class="class-name" style="
+                            flex: 1;
+                            font-size: ${classNameSize}rem;
+                            font-weight: 600;
+                            color: ${theme.text};
+                            letter-spacing: -0.3px;
+                            white-space: nowrap;
+                            overflow: hidden;
+                            text-overflow: ellipsis;
+                        ">${escapeHtml(displayName)}</div>
+                        <div class="class-room" style="
+                            font-size: ${roomSize}rem;
+                            font-weight: 500;
+                            color: ${theme.room};
+                            min-width: ${roomMinWidth}px;
+                            text-align: right;
+                            flex-shrink: 0;
+                        ">${escapeHtml(cls.room || 'TBA')}</div>
+                    </div>
+                `;
+            }
+            html += `</div></div>`;
+        }
+        
+        html += `
+            </div>
+        </div>`;
+        
+        return html;
+    }
+    
+    // ============================================================
+    // MEASURE AND COMPRESS
+    // ============================================================
+    
     const gridContainer = document.getElementById('timetableGrid');
-    const originalContent = gridContainer.innerHTML;
-    gridContainer.innerHTML = html;
+    let originalContent = gridContainer.innerHTML;
     
-    // Force reflow to ensure styles are applied
+    // Helper to measure current layout
+    async function measureAndCompress() {
+        let html = buildWallpaperHTML();
+        gridContainer.innerHTML = html;
+        
+        await new Promise(resolve => requestAnimationFrame(resolve));
+        await new Promise(resolve => setTimeout(resolve, 50));
+        
+        const wallpaper = document.getElementById('lockscreenWallpaper');
+        const scheduleEl = wallpaper.querySelector('.lockscreen-schedule');
+        const titleEl = wallpaper.querySelector('.lockscreen-title');
+        
+        const titleHeight = titleEl ? titleEl.scrollHeight : 0;
+        const scheduleHeight = scheduleEl ? scheduleEl.scrollHeight : 0;
+        const totalContentHeight = titleHeight + scheduleHeight + topPadding + bottomPadding;
+        
+        console.log('📏 Measured:', { titleHeight, scheduleHeight, totalContentHeight, maxAllowedHeight });
+        
+        return { totalContentHeight, titleHeight, scheduleHeight, wallpaper, scheduleEl, titleEl };
+    }
+    
+    // Start with initial layout
+    let measurement = await measureAndCompress();
+    let iteration = 0;
+    const maxIterations = 10;
+    
+    // Priority 2: Reduce top padding if needed
+    while (measurement.totalContentHeight > maxAllowedHeight && iteration < maxIterations) {
+        iteration++;
+        
+        // Priority 2: Reduce top padding
+        if (topPadding > 20) {
+            topPadding = Math.max(20, topPadding - 8);
+            console.log(`🔄 Priority 2: Reduced top padding to ${topPadding}px`);
+            measurement = await measureAndCompress();
+            continue;
+        }
+        
+        // Priority 3: Compress spacing (gaps, margins, padding)
+        if (gapSize > 8) {
+            gapSize = Math.max(8, gapSize - 3);
+            classGap = Math.max(3, classGap - 1);
+            titleMargin = Math.max(10, titleMargin - 3);
+            dayMargin = Math.max(4, dayMargin - 2);
+            cardPadding = Math.max(10, cardPadding - 2);
+            console.log(`🔄 Priority 3: Compressed spacing - gap: ${gapSize}px, card padding: ${cardPadding}px`);
+            measurement = await measureAndCompress();
+            continue;
+        }
+        
+        // Priority 4: Scale cards slightly (keep text readable)
+        if (cardPadding > 8) {
+            cardPadding = Math.max(8, cardPadding - 2);
+            console.log(`🔄 Priority 4: Reduced card padding to ${cardPadding}px`);
+            measurement = await measureAndCompress();
+            continue;
+        }
+        
+        // Priority 5: Scale fonts (small reductions)
+        if (titleSize > 3.0) {
+            titleSize = Math.max(3.0, titleSize - 0.3);
+            dayNameSize = Math.max(1.3, dayNameSize - 0.15);
+            timeSize = Math.max(0.75, timeSize - 0.05);
+            classNameSize = Math.max(0.8, classNameSize - 0.05);
+            roomSize = Math.max(0.65, roomSize - 0.05);
+            timeMinWidth = Math.max(75, timeMinWidth - 5);
+            roomMinWidth = Math.max(55, roomMinWidth - 5);
+            console.log(`Priority 5: Scaled fonts - title: ${titleSize}rem, class: ${classNameSize}rem`);
+            measurement = await measureAndCompress();
+            continue;
+        }
+        
+        // Priority 6: Emergency mode - compact layout
+        if (cardRadius > 6) {
+            cardRadius = Math.max(6, cardRadius - 2);
+            cardBorderWidth = Math.max(1, cardBorderWidth - 0.5);
+            topPadding = Math.max(12, topPadding - 4);
+            bottomPadding = Math.max(12, bottomPadding - 4);
+            sidePadding = Math.max(16, sidePadding - 4);
+            console.log(`🔄 Priority 6: Emergency compact mode`);
+            measurement = await measureAndCompress();
+            continue;
+        }
+        
+        // If we get here, we've done all we can
+        console.log('⚠️ Max compression reached, content may still overflow');
+        break;
+    }
+    
+    console.log('✅ Final layout:', {
+        topPadding,
+        titleSize,
+        gapSize,
+        cardPadding,
+        classNameSize,
+        totalContentHeight: measurement.totalContentHeight
+    });
+    
+    // ============================================================
+    // FINAL CAPTURE
+    // ============================================================
+    
+    // One final render with all adjustments
+    let finalHtml = buildWallpaperHTML();
+    gridContainer.innerHTML = finalHtml;
+    
+    await new Promise(resolve => requestAnimationFrame(resolve));
+    await new Promise(resolve => setTimeout(resolve, 50));
+    
     document.body.offsetHeight;
     
     setTimeout(async () => {
@@ -1606,7 +1639,6 @@ async function generateLockscreenImage() {
                 allowTaint: true
             });
             
-            // If the target resolution is different, resize the canvas
             let finalCanvas = canvas;
             if (canvas.width !== targetWidth || canvas.height !== targetHeight) {
                 finalCanvas = document.createElement('canvas');
@@ -1616,14 +1648,12 @@ async function generateLockscreenImage() {
                 ctx.drawImage(canvas, 0, 0, targetWidth, targetHeight);
             }
             
-            // Apply padding if needed
             if (padding > 0) {
                 const paddedCanvas = document.createElement('canvas');
                 paddedCanvas.width = targetWidth;
                 paddedCanvas.height = targetHeight;
                 const ctx = paddedCanvas.getContext('2d');
-                // Use the theme's background color instead of hardcoded white
-                ctx.fillStyle = theme.background;  // ← FIXED!
+                ctx.fillStyle = theme.background;
                 ctx.fillRect(0, 0, targetWidth, targetHeight);
                 
                 const paddingPx = padding * Math.min(targetWidth, targetHeight);
@@ -1652,96 +1682,76 @@ async function generateLockscreenImage() {
     }, 300);
 }
 
+// ========== PREVIEW FUNCTION ==========
 function previewLockscreen(theme, themeName) {
-    if (currentCourses.length === 0) {
-        showStatus('No schedule to preview. Upload your COR first.', 'error');
-        return;
-    }
-    
-    const dayMap = { 'M': 'Monday', 'T': 'Tuesday', 'W': 'Wednesday', 'Th': 'Thursday', 'F': 'Friday', 'S': 'Saturday' };
+    // ALWAYS use placeholder/demo data for preview
+    // This prevents users from thinking the preview is their actual schedule
     const fullDayMap = { 'Monday': 'MON', 'Tuesday': 'TUE', 'Wednesday': 'WED', 'Thursday': 'THU', 'Friday': 'FRI', 'Saturday': 'SAT' };
+    const previewWidth = 400;
     
-    // Group courses by day using meetings
-    const scheduleByDay = {};
-    const daysOrder = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-    daysOrder.forEach(day => { scheduleByDay[day] = []; });
-    
-    for (const course of currentCourses) {
-        if (!course.meetings || course.meetings.length === 0) continue;
-        for (const meeting of course.meetings) {
-            const fullDay = dayMap[meeting.day];
-            if (!fullDay) continue;
-            scheduleByDay[fullDay].push({
-                code: course.code,
-                name: course.subject || course.code,
-                startTime: meeting.startTime,
-                endTime: meeting.endTime,
-                room: meeting.room
-            });
+    // Dummy data with clearly fake course names
+    const demoData = [
+        {
+            day: 'Monday',
+            classes: [
+                { name: 'Sample Subject 1', startTime: '8:00 AM', endTime: '9:30 AM', room: 'Rm 101' },
+                { name: 'Sample Subject 2', startTime: '10:00 AM', endTime: '11:30 AM', room: 'Rm 201' }
+            ]
+        },
+        {
+            day: 'Wednesday',
+            classes: [
+                { name: 'Sample Subject 3', startTime: '1:00 PM', endTime: '2:30 PM', room: 'Rm 302' },
+                { name: 'Sample Subject 4', startTime: '3:00 PM', endTime: '4:30 PM', room: 'Rm 405' }
+            ]
         }
-    }
-    
-    // Sort classes by time for each day
-    for (const day in scheduleByDay) {
-        scheduleByDay[day].sort((a, b) => timeToFloat(a.startTime) - timeToFloat(b.startTime));
-    }
-    
-    const daysWithClasses = daysOrder.filter(day => scheduleByDay[day].length > 0);
-    
-    if (daysWithClasses.length === 0) {
-        showStatus('No classes found in schedule.', 'error');
-        return;
-    }
-    
-    // Build preview HTML with theme colors
-    const previewWidth = 540;  // Half of 1080 for preview
-    const previewHeight = 960; // Half of 1920 for preview
+    ];
     
     let html = `<div class="lockscreen-preview" id="lockscreenPreview" style="
         width: ${previewWidth}px;
         max-width: 100%;
-        height: auto;
-        aspect-ratio: 9 / 16;
         background: ${theme.background};
-        padding: 30px 20px 20px 20px;
+        padding: 20px 16px 16px 16px;
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         box-sizing: border-box;
         display: flex;
         flex-direction: column;
-        border-radius: 16px;
+        border-radius: 14px;
         box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
         margin: 0 auto;
         overflow: hidden;
-        border: 2px solid var(--border);
+        border: 2px solid ${theme.border || 'rgba(0,0,0,0.1)'};
+        height: auto;
+        min-height: 300px;
     ">
-        <div class="lockscreen-title" style="text-align: center; margin-bottom: 16px; flex-shrink: 0;">
-            <h1 style="font-family: 'Playfair Display', 'Georgia', serif; font-size: 2.5rem; font-weight: 600; color: ${theme.title}; letter-spacing: -0.5px; margin: 0;">Class Schedule</h1>
+        <div class="lockscreen-title" style="text-align: center; margin-bottom: 10px; flex-shrink: 0;">
+            <h1 style="font-family: 'Playfair Display', 'Georgia', serif; font-size: 1.6rem; font-weight: 600; color: ${theme.title}; letter-spacing: -0.5px; margin: 0;">Class Schedule</h1>
         </div>
-        <div class="lockscreen-schedule" style="display: flex; flex-direction: column; gap: 16px; flex: 1; overflow-y: auto; padding-right: 4px;">
+        <div class="lockscreen-schedule" style="display: flex; flex-direction: column; gap: 10px; flex: 1; justify-content: center;">
     `;
     
-    for (const day of daysWithClasses) {
-        const classes = scheduleByDay[day];
-        const shortDay = fullDayMap[day];
+    for (const dayData of demoData) {
+        const shortDay = fullDayMap[dayData.day];
+        const classes = dayData.classes;
         
         html += `<div class="day-card" style="
             background: ${theme.card};
-            border-radius: 16px;
-            padding: 16px 14px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+            border-radius: 10px;
+            padding: 10px 12px;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
             flex-shrink: 0;
         ">
             <div class="day-header" style="
                 display: flex;
                 align-items: center;
                 justify-content: space-between;
-                margin-bottom: 8px;
-                padding-bottom: 6px;
-                border-bottom: 2px solid ${theme.border};
+                margin-bottom: 4px;
+                padding-bottom: 4px;
+                border-bottom: 2px solid ${theme.border || 'rgba(0,0,0,0.1)'};
             ">
-                <span class="day-name" style="font-size: 1.2rem; font-weight: 700; color: ${theme.dayName}; letter-spacing: 0.5px;">${shortDay}</span>
+                <span class="day-name" style="font-size: 0.9rem; font-weight: 700; color: ${theme.dayName}; letter-spacing: 0.5px;">${shortDay}</span>
             </div>
-            <div class="class-list" style="display: flex; flex-direction: column; gap: 8px;">
+            <div class="class-list" style="display: flex; flex-direction: column; gap: 4px;">
         `;
         
         for (const cls of classes) {
@@ -1750,13 +1760,13 @@ function previewLockscreen(theme, themeName) {
                 <div class="class-item" style="
                     display: flex;
                     align-items: baseline;
-                    gap: 12px;
-                    padding: 4px 0;
+                    gap: 8px;
+                    padding: 2px 0;
                     flex-wrap: nowrap;
                 ">
                     <div class="class-time" style="
-                        min-width: 100px;
-                        font-size: 0.75rem;
+                        min-width: 75px;
+                        font-size: 0.6rem;
                         font-weight: 500;
                         color: ${theme.time};
                         font-family: 'SF Mono', 'Menlo', monospace;
@@ -1765,19 +1775,19 @@ function previewLockscreen(theme, themeName) {
                     ">${escapeHtml(timeRange)}</div>
                     <div class="class-name" style="
                         flex: 1;
-                        font-size: 0.85rem;
+                        font-size: 0.65rem;
                         font-weight: 600;
                         color: ${theme.text};
                         letter-spacing: -0.3px;
                         white-space: nowrap;
                         overflow: hidden;
                         text-overflow: ellipsis;
-                    ">${escapeHtml(cls.name.substring(0, 30))}</div>
+                    ">${escapeHtml(cls.name.substring(0, 22))}</div>
                     <div class="class-room" style="
-                        font-size: 0.7rem;
+                        font-size: 0.5rem;
                         font-weight: 500;
                         color: ${theme.room};
-                        min-width: 70px;
+                        min-width: 45px;
                         text-align: right;
                         flex-shrink: 0;
                     ">${escapeHtml(cls.room || 'TBA')}</div>
@@ -1787,79 +1797,51 @@ function previewLockscreen(theme, themeName) {
         html += `</div></div>`;
     }
     
-        html += `
-            </div>
-            <div style="text-align: center; margin-top: 12px; color: ${theme.room}; opacity: 0.5; font-size: 0.5rem; flex-shrink: 0;">
-                ${themeName || 'Preview'}
-            </div>
-        </div>`;
+    // Always show the demo badge
+    const footerText = currentCourses.length > 0 
+        ? 'Sample Preview • Upload your COR to generate your wallpaper' 
+        : 'Color Preview • Upload your COR to generate';
     
-    // Find or create preview container
+    html += `
+        </div>
+        <div style="text-align: center; margin-top: 6px; color: ${theme.room}; opacity: 0.5; font-size: 0.4rem; flex-shrink: 0;">
+            ${footerText}
+        </div>
+    </div>`;
+    
+    // Find or create the preview container
     let previewContainer = document.getElementById('previewContainer');
     if (!previewContainer) {
-        previewContainer = document.createElement('div');
-        previewContainer.id = 'previewContainer';
-        previewContainer.style.cssText = `
-            display: flex;
-            justify-content: center;
-            align-items: flex-start;
-            padding: 20px;
-            margin-top: 16px;
-            background: #f8f9fc;
-            border-radius: 12px;
-            border: 2px dashed #e8ecf1;
-            width: 100%;
-            box-sizing: border-box;
-            max-height: 500px;
-            overflow-y: auto;
-            scrollbar-width: thin;
-            scrollbar-color: #afd4fd #f1f1f1;
-        `;
-        
-        // Insert it after the custom colors container
-        const customColorsContainer = document.getElementById('customColorsContainer');
-        if (customColorsContainer) {
-            customColorsContainer.parentNode.insertBefore(previewContainer, customColorsContainer.nextSibling);
+        const previewColumn = document.getElementById('previewColumn');
+        if (previewColumn) {
+            previewContainer = document.createElement('div');
+            previewContainer.id = 'previewContainer';
+            previewContainer.style.cssText = `
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                width: 100%;
+                min-height: 200px;
+            `;
+            previewColumn.innerHTML = '';
+            const title = document.createElement('div');
+            title.style.cssText = 'font-size: 0.7rem; color: #94a3b8; font-weight: 500; text-align: center; margin-bottom: 8px;';
+            title.textContent = 'Color Preview';
+            previewColumn.appendChild(title);
+            previewColumn.appendChild(previewContainer);
+        } else {
+            console.error('Preview column not found!');
+            return;
         }
     }
     
-    // Show preview with proper alignment
     previewContainer.innerHTML = html;
     previewContainer.style.display = 'flex';
-    previewContainer.style.alignItems = 'flex-start';
     previewContainer.style.justifyContent = 'center';
-    
-    // Force scrollbar styles by injecting a style element
-    const styleId = 'previewScrollbarStyles';
-    let styleEl = document.getElementById(styleId);
-    if (!styleEl) {
-        styleEl = document.createElement('style');
-        styleEl.id = styleId;
-        styleEl.textContent = `
-            #previewContainer::-webkit-scrollbar {
-                width: 6px !important;
-                height: 6px !important;
-            }
-            #previewContainer::-webkit-scrollbar-track {
-                background: #f1f1f1 !important;
-                border-radius: 10px !important;
-            }
-            #previewContainer::-webkit-scrollbar-thumb {
-                background: #b21515 !important;
-                border-radius: 10px !important;
-            }
-            #previewContainer::-webkit-scrollbar-thumb:hover {
-                background: #9f0b1c !important;
-            }
-        `;
-        document.head.appendChild(styleEl);
-    }
-    
-    // Show a status message
-    showStatus(`Preview: ${themeName || 'Custom Colors'}`, 'success');
+    previewContainer.style.alignItems = 'center';
 }
 
-
+// ========== ICS EXPORT ==========
 function exportICS() {
     if (currentCourses.length === 0) {
         showStatus('No schedule to export. Upload your COR first.', 'error');
@@ -1869,17 +1851,13 @@ function exportICS() {
     const dayMap = { 'M': 'Monday', 'T': 'Tuesday', 'W': 'Wednesday', 'Th': 'Thursday', 'F': 'Friday', 'S': 'Saturday' };
     const daysOfWeek = { 'Monday': 0, 'Tuesday': 1, 'Wednesday': 2, 'Thursday': 3, 'Friday': 4, 'Saturday': 5 };
     
-    // Get current date to determine which week to use
     const now = new Date();
-    const currentDay = now.getDay(); // 0 = Sunday, 1 = Monday, etc.
-    
-    // Find the nearest Monday
+    const currentDay = now.getDay();
     const mondayOffset = (currentDay === 0) ? -6 : 1 - currentDay;
     const monday = new Date(now);
     monday.setDate(now.getDate() + mondayOffset);
     monday.setHours(0, 0, 0, 0);
     
-    // Build ICS file
     let ics = [
         'BEGIN:VCALENDAR',
         'VERSION:2.0',
@@ -1900,11 +1878,9 @@ function exportICS() {
             const dayIndex = daysOfWeek[fullDay];
             if (dayIndex === undefined) continue;
             
-            // Calculate date for this day
             const eventDate = new Date(monday);
             eventDate.setDate(monday.getDate() + dayIndex);
             
-            // Parse start and end times
             const startParts = meeting.startTime.match(/(\d+):(\d+)\s*(AM|PM)/i);
             const endParts = meeting.endTime.match(/(\d+):(\d+)\s*(AM|PM)/i);
             if (!startParts || !endParts) continue;
@@ -1917,13 +1893,11 @@ function exportICS() {
             const endMinute = parseInt(endParts[2]);
             const endMeridian = endParts[3].toUpperCase();
             
-            // Convert to 24-hour
             if (startMeridian === 'PM' && startHour !== 12) startHour += 12;
             if (startMeridian === 'AM' && startHour === 12) startHour = 0;
             if (endMeridian === 'PM' && endHour !== 12) endHour += 12;
             if (endMeridian === 'AM' && endHour === 12) endHour = 0;
             
-            // Format date for ICS (YYYYMMDDTHHMMSS)
             const formatDate = (date) => {
                 const year = date.getFullYear();
                 const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -1935,15 +1909,11 @@ function exportICS() {
             const startTimeStr = String(startHour).padStart(2, '0') + String(startMinute).padStart(2, '0') + '00';
             const endTimeStr = String(endHour).padStart(2, '0') + String(endMinute).padStart(2, '0') + '00';
             
-            // Build event details
             const subject = `${course.code} - ${course.subject || course.code}`;
             const location = meeting.room || 'TBA';
             const description = `Course: ${course.code}\nSubject: ${course.subject || ''}\nFaculty: ${course.faculty || 'TBA'}\nRoom: ${meeting.room || 'TBA'}`;
             
-            // Generate a unique ID for this event
             const uid = `${course.code}-${dateStr}-${startTimeStr}-${Math.random().toString(36).substr(2, 8)}`;
-            
-            // Get day abbreviation for RRULE (e.g., MO, TU, WE, TH, FR, SA)
             const dayAbbr = fullDay.substring(0, 2).toUpperCase();
             
             ics.push(
@@ -1970,7 +1940,6 @@ function exportICS() {
         return;
     }
     
-    // Create and download the ICS file
     const icsContent = ics.join('\r\n');
     const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
     const link = document.createElement('a');
@@ -1989,7 +1958,7 @@ function exportICS() {
     );
 }
 
-
+// ========== UTILITY FUNCTIONS ==========
 function loadScript(src) {
     return new Promise((resolve, reject) => {
         const script = document.createElement('script');
