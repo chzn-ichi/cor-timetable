@@ -1365,8 +1365,8 @@ async function generateLockscreenImage() {
     let titleMargin = 32;
     let dayNameSize = 2.0;
     let dayMargin = 20;
-    let timeSize = 1.8;
-    let classNameSize = 1.9;
+    let timeSize = 1.5;
+    let classNameSize = 1.7;
     let roomSize = 1.5;
     let cardPadding = 20;
     let cardRadius = 14;
@@ -1459,7 +1459,7 @@ async function generateLockscreenImage() {
                     <div class="class-item" style="
                         display: flex;
                         align-items: baseline;
-                        gap: 10px;
+                        gap: 15px;
                         padding: 2px 0;
                         flex-wrap: nowrap;
                     ">
@@ -1475,7 +1475,7 @@ async function generateLockscreenImage() {
                         <div class="class-name" style="
                             flex: 1;
                             font-size: ${classNameSize}rem;
-                            font-weight: 600;
+                            font-weight: 500;
                             color: ${theme.text};
                             letter-spacing: -0.3px;
                             white-space: nowrap;
