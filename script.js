@@ -1738,14 +1738,6 @@ function previewLockscreen(theme, themeName) {
         min-height: 300px;
         justify-content: flex-end;
     ">
-        <!-- Preview safe area indicator -->
-        <div style="flex: 0 0 30%; min-height: 30%; width: 100%; display: flex; align-items: center; justify-content: center; opacity: 0.3;">
-            <div style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
-                <span style="font-size: 1.2rem;">🕐</span>
-                <span style="font-size: 0.5rem; color: ${theme.title};">12:00</span>
-                <span style="font-size: 0.35rem; color: ${theme.title};">Clock/Date Area</span>
-            </div>
-        </div>
         
         <!-- Content area -->
         <div style="display: flex; flex-direction: column; gap: 8px; flex: 0 1 auto;">
