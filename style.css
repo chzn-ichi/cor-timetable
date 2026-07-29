@@ -1432,3 +1432,22 @@ input[type="range"]::-moz-range-thumb {
         min-height: 150px;
     }
 }
+
+
+/* ========== LOCKSCREEN SPACING ========== */
+.lockscreen-wallpaper .lockscreen-content {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
+    justify-content: flex-end;
+    padding-bottom: 40px;
+}
+
+.lockscreen-wallpaper .lockscreen-title {
+    margin-bottom: 20px;
+}
+
+.lockscreen-wallpaper .lockscreen-schedule {
+    gap: 14px;
+}

@@ -1385,44 +1385,60 @@ async function generateLockscreenImage() {
     
     // Helper to build the HTML with current values
     function buildWallpaperHTML() {
+        // Calculate safe area - leave top 30% for clock/date (about 576px on 1920px height)
+        const safeAreaTop = renderHeight * 0.28; // 28% from top for clock
+        const contentHeight = renderHeight - safeAreaTop - bottomPadding;
+        
         let html = `<div class="lockscreen-wallpaper" id="lockscreenWallpaper" style="
             width: ${renderWidth}px;
             height: ${renderHeight}px;
             min-height: ${renderHeight}px;
             background: ${theme.background};
-            padding: ${topPadding}px ${sidePadding}px ${bottomPadding}px ${sidePadding}px;
+            padding: 0 ${sidePadding}px ${bottomPadding}px ${sidePadding}px;
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             box-sizing: border-box;
             display: flex;
             flex-direction: column;
             overflow: hidden;
             position: relative;
-            justify-content: flex-start;
+            justify-content: flex-end;
             align-items: stretch;
         ">
-            <div class="lockscreen-title" style="
-                text-align: center; 
-                margin-bottom: ${titleMargin}px; 
-                flex-shrink: 0;
+            <!-- Safe area spacer - pushes content down below clock/date -->
+            <div style="flex: 0 0 ${safeAreaTop}px; min-height: ${safeAreaTop}px; width: 100%;"></div>
+            
+            <!-- Main content starts here -->
+            <div class="lockscreen-content" style="
+                display: flex;
+                flex-direction: column;
+                flex: 0 1 auto;
                 width: 100%;
+                max-height: ${contentHeight}px;
+                overflow: hidden;
             ">
-                <h1 style="
-                    font-family: 'Playfair Display', 'Georgia', serif; 
-                    font-size: ${titleSize}rem; 
-                    font-weight: 600; 
-                    color: ${theme.title}; 
-                    letter-spacing: -0.5px; 
-                    margin: 0;
-                ">Class Schedule</h1>
-            </div>
-            <div class="lockscreen-schedule" style="
-                display: flex; 
-                flex-direction: column; 
-                gap: ${gapSize}px; 
-                flex: 0 1 auto; 
-                overflow: hidden; 
-                width: 100%;
-            ">
+                <div class="lockscreen-title" style="
+                    text-align: center; 
+                    margin-bottom: ${titleMargin}px; 
+                    flex-shrink: 0;
+                    width: 100%;
+                ">
+                    <h1 style="
+                        font-family: 'Playfair Display', 'Georgia', serif; 
+                        font-size: ${titleSize}rem; 
+                        font-weight: 600; 
+                        color: ${theme.title}; 
+                        letter-spacing: -0.5px; 
+                        margin: 0;
+                    ">Class Schedule</h1>
+                </div>
+                <div class="lockscreen-schedule" style="
+                    display: flex; 
+                    flex-direction: column; 
+                    gap: ${gapSize}px; 
+                    flex: 0 1 auto; 
+                    overflow: hidden; 
+                    width: 100%;
+                ">
         `;
         
         for (const day of daysWithClasses) {
@@ -1466,7 +1482,7 @@ async function generateLockscreenImage() {
                         <div class="class-time" style="
                             min-width: ${timeMinWidth}px;
                             font-size: ${timeSize}rem;
-                            font-weight: 500;
+                            font-weight: 600;
                             color: ${theme.time};
                             font-family: 'SF Mono', 'Menlo', monospace;
                             letter-spacing: -0.3px;
@@ -1497,6 +1513,7 @@ async function generateLockscreenImage() {
         }
         
         html += `
+                </div>
             </div>
         </div>`;
         
@@ -1510,7 +1527,7 @@ async function generateLockscreenImage() {
     const gridContainer = document.getElementById('timetableGrid');
     let originalContent = gridContainer.innerHTML;
     
-    // Helper to measure current layout
+    // MEASURE AND COMPRESS
     async function measureAndCompress() {
         let html = buildWallpaperHTML();
         gridContainer.innerHTML = html;
@@ -1519,94 +1536,89 @@ async function generateLockscreenImage() {
         await new Promise(resolve => setTimeout(resolve, 50));
         
         const wallpaper = document.getElementById('lockscreenWallpaper');
-        const scheduleEl = wallpaper.querySelector('.lockscreen-schedule');
-        const titleEl = wallpaper.querySelector('.lockscreen-title');
+        const contentEl = wallpaper?.querySelector('.lockscreen-content');
+        const titleEl = contentEl?.querySelector('.lockscreen-title');
+        const scheduleEl = contentEl?.querySelector('.lockscreen-schedule');
         
+        const safeAreaTop = renderHeight * 0.28;
         const titleHeight = titleEl ? titleEl.scrollHeight : 0;
         const scheduleHeight = scheduleEl ? scheduleEl.scrollHeight : 0;
-        const totalContentHeight = titleHeight + scheduleHeight + topPadding + bottomPadding;
+        const contentHeight = titleHeight + scheduleHeight + bottomPadding;
+        const totalContentHeight = safeAreaTop + contentHeight;
         
-        console.log('📏 Measured:', { titleHeight, scheduleHeight, totalContentHeight, maxAllowedHeight });
+        console.log('Measured:', { 
+            safeAreaTop, 
+            titleHeight, 
+            scheduleHeight, 
+            contentHeight, 
+            totalContentHeight, 
+            maxAllowedHeight: renderHeight 
+        });
         
-        return { totalContentHeight, titleHeight, scheduleHeight, wallpaper, scheduleEl, titleEl };
+        return { 
+            totalContentHeight, 
+            titleHeight, 
+            scheduleHeight, 
+            contentHeight,
+            wallpaper, 
+            scheduleEl, 
+            titleEl,
+            contentEl 
+        };
     }
-    
+
     // Start with initial layout
     let measurement = await measureAndCompress();
     let iteration = 0;
     const maxIterations = 10;
-    
-    // Priority 2: Reduce top padding if needed
-    while (measurement.totalContentHeight > maxAllowedHeight && iteration < maxIterations) {
+
+    // Now we check if content fits within the available space (renderHeight - safeAreaTop)
+    const availableContentHeight = renderHeight - (renderHeight * 0.28) - bottomPadding;
+
+    while (measurement.contentHeight > availableContentHeight && iteration < maxIterations) {
         iteration++;
         
-        // Priority 2: Reduce top padding
-        if (topPadding > 20) {
-            topPadding = Math.max(20, topPadding - 8);
-            console.log(`🔄 Priority 2: Reduced top padding to ${topPadding}px`);
-            measurement = await measureAndCompress();
-            continue;
-        }
-        
-        // Priority 3: Compress spacing (gaps, margins, padding)
+        // Priority 2: Reduce spacing
         if (gapSize > 8) {
-            gapSize = Math.max(8, gapSize - 3);
-            classGap = Math.max(3, classGap - 1);
-            titleMargin = Math.max(10, titleMargin - 3);
-            dayMargin = Math.max(4, dayMargin - 2);
-            cardPadding = Math.max(10, cardPadding - 2);
-            console.log(`🔄 Priority 3: Compressed spacing - gap: ${gapSize}px, card padding: ${cardPadding}px`);
-            measurement = await measureAndCompress();
-            continue;
-        }
-        
-        // Priority 4: Scale cards slightly (keep text readable)
-        if (cardPadding > 8) {
+            gapSize = Math.max(6, gapSize - 3);
+            classGap = Math.max(2, classGap - 1);
+            titleMargin = Math.max(8, titleMargin - 3);
+            dayMargin = Math.max(3, dayMargin - 2);
             cardPadding = Math.max(8, cardPadding - 2);
-            console.log(`🔄 Priority 4: Reduced card padding to ${cardPadding}px`);
+            console.log(`Compressed spacing - gap: ${gapSize}px, card padding: ${cardPadding}px`);
             measurement = await measureAndCompress();
             continue;
         }
         
-        // Priority 5: Scale fonts (small reductions)
-        if (titleSize > 3.0) {
-            titleSize = Math.max(3.0, titleSize - 0.3);
-            dayNameSize = Math.max(1.3, dayNameSize - 0.15);
-            timeSize = Math.max(0.75, timeSize - 0.05);
-            classNameSize = Math.max(0.8, classNameSize - 0.05);
-            roomSize = Math.max(0.65, roomSize - 0.05);
-            timeMinWidth = Math.max(75, timeMinWidth - 5);
-            roomMinWidth = Math.max(55, roomMinWidth - 5);
-            console.log(`Priority 5: Scaled fonts - title: ${titleSize}rem, class: ${classNameSize}rem`);
+        // Priority 3: Scale fonts
+        if (titleSize > 2.5) {
+            titleSize = Math.max(2.5, titleSize - 0.3);
+            dayNameSize = Math.max(1.1, dayNameSize - 0.15);
+            timeSize = Math.max(0.7, timeSize - 0.05);
+            classNameSize = Math.max(0.75, classNameSize - 0.05);
+            roomSize = Math.max(0.6, roomSize - 0.05);
+            timeMinWidth = Math.max(70, timeMinWidth - 5);
+            roomMinWidth = Math.max(50, roomMinWidth - 5);
+            console.log(`Scaled fonts - title: ${titleSize}rem, class: ${classNameSize}rem`);
             measurement = await measureAndCompress();
             continue;
         }
         
-        // Priority 6: Emergency mode - compact layout
-        if (cardRadius > 6) {
-            cardRadius = Math.max(6, cardRadius - 2);
+        // Priority 4: Emergency compact
+        if (cardRadius > 4) {
+            cardRadius = Math.max(4, cardRadius - 2);
             cardBorderWidth = Math.max(1, cardBorderWidth - 0.5);
-            topPadding = Math.max(12, topPadding - 4);
-            bottomPadding = Math.max(12, bottomPadding - 4);
+            bottomPadding = Math.max(16, bottomPadding - 4);
             sidePadding = Math.max(16, sidePadding - 4);
-            console.log(`🔄 Priority 6: Emergency compact mode`);
+            console.log(`Emergency compact mode`);
             measurement = await measureAndCompress();
             continue;
         }
         
         // If we get here, we've done all we can
-        console.log('⚠️ Max compression reached, content may still overflow');
+        console.log('Max compression reached');
         break;
     }
-    
-    console.log('✅ Final layout:', {
-        topPadding,
-        titleSize,
-        gapSize,
-        cardPadding,
-        classNameSize,
-        totalContentHeight: measurement.totalContentHeight
-    });
     
     // ============================================================
     // FINAL CAPTURE
@@ -1707,11 +1719,12 @@ function previewLockscreen(theme, themeName) {
         }
     ];
     
+    // In previewLockscreen function, replace the preview HTML with:
     let html = `<div class="lockscreen-preview" id="lockscreenPreview" style="
         width: ${previewWidth}px;
         max-width: 100%;
         background: ${theme.background};
-        padding: 20px 16px 16px 16px;
+        padding: 16px;
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         box-sizing: border-box;
         display: flex;
@@ -1723,12 +1736,24 @@ function previewLockscreen(theme, themeName) {
         border: 2px solid ${theme.border || 'rgba(0,0,0,0.1)'};
         height: auto;
         min-height: 300px;
+        justify-content: flex-end;
     ">
-        <div class="lockscreen-title" style="text-align: center; margin-bottom: 10px; flex-shrink: 0;">
-            <h1 style="font-family: 'Playfair Display', 'Georgia', serif; font-size: 1.6rem; font-weight: 600; color: ${theme.title}; letter-spacing: -0.5px; margin: 0;">Class Schedule</h1>
+        <!-- Preview safe area indicator -->
+        <div style="flex: 0 0 30%; min-height: 30%; width: 100%; display: flex; align-items: center; justify-content: center; opacity: 0.3;">
+            <div style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
+                <span style="font-size: 1.2rem;">🕐</span>
+                <span style="font-size: 0.5rem; color: ${theme.title};">12:00</span>
+                <span style="font-size: 0.35rem; color: ${theme.title};">Clock/Date Area</span>
+            </div>
         </div>
-        <div class="lockscreen-schedule" style="display: flex; flex-direction: column; gap: 10px; flex: 1; justify-content: center;">
-    `;
+        
+        <!-- Content area -->
+        <div style="display: flex; flex-direction: column; gap: 8px; flex: 0 1 auto;">
+            <div class="lockscreen-title" style="text-align: center; margin-bottom: 6px; flex-shrink: 0;">
+                <h1 style="font-family: 'Playfair Display', 'Georgia', serif; font-size: 1.2rem; font-weight: 600; color: ${theme.title}; letter-spacing: -0.5px; margin: 0;">Class Schedule</h1>
+            </div>
+            <div class="lockscreen-schedule" style="display: flex; flex-direction: column; gap: 8px; flex: 1;">
+        `;
     
     for (const dayData of demoData) {
         const shortDay = fullDayMap[dayData.day];
